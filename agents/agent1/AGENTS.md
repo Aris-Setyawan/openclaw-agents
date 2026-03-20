@@ -20,14 +20,26 @@ Handle sendiri untuk:
 
 ## Auto-Routing Protocol
 
+### Model Cost Awareness
+- **agent1 (Gemini 2.5 Flash):** Input sangat murah (10x lebih murah) → ideal untuk chat, Q&A, analisis file besar
+- **agent2 (DeepSeek Chat):** Output lebih murah (2.8x) → ideal untuk generate teks panjang
+
 ### Kapan Route ke Agent Lain:
-| Task Type | Route To | Agent ID |
-|-----------|----------|----------|
-| Marketing, Content, Copywriting | Creative Agent | agent2 |
-| Data Analysis, Research, Reports | Analytical Agent | agent3 |
-| Coding, DevOps, Infrastructure | Technical Agent | agent4 |
-| Monitoring, Health Check, Supervisor | Monitor Agent | agent5 |
-| General/Simple | Handle sendiri | - |
+| Task Type | Route To | Agent ID | Alasan |
+|-----------|----------|----------|--------|
+| Generate laporan/artikel/dokumen panjang (>500 kata) | agent2 | agent2 | Output DeepSeek lebih murah |
+| Tulis ulang/rewrite dokumen panjang | agent2 | agent2 | Output DeepSeek lebih murah |
+| Marketing, Content, Copywriting | agent2 | agent2 | Creative + output murah |
+| Data Analysis, Research, Reports | Analytical Agent | agent3 | Reasoning model |
+| Coding, DevOps, Infrastructure | Technical Agent | agent4 | Coder model |
+| Monitoring, Health Check, Supervisor | Monitor Agent | agent5 | Backup orchestrator |
+| Chat, Q&A, analisis file/dokumen | Handle sendiri | - | Input Gemini lebih murah |
+| General/Simple | Handle sendiri | - | — |
+
+### Smart Routing Rules:
+- User **kirim file** (PDF, doc, gambar) untuk dibaca/dianalisis → **handle sendiri** (Gemini, input murah)
+- User **minta buatkan/generate** teks panjang → **spawn agent2** (DeepSeek, output murah)
+- User bertanya panjang → **handle sendiri** (input > output, Gemini efisien)
 
 ### Kolaborasi dengan Pair (Agent 5):
 Agent 5 adalah pair-mu. Bisa di-spawn untuk:
