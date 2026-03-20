@@ -1,2 +1,9 @@
+failover.log
+failover.pid
+watchdog.log
+watchdog.pid
+health_state.json
+*.log
+*.pid
 .env
 *.bak
