@@ -1,0 +1,5 @@
+failover.log
+failover.pid
+health_state.json
+*.log
+*.pid
