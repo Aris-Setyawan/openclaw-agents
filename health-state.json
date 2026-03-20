@@ -1,0 +1,85 @@
+{
+  "updated_at": "2026-03-20T12:38:34.546007+00:00",
+  "telegram_active_agent": "agent1",
+  "is_failover_active": false,
+  "agents": {
+    "agent1": {
+      "status": "healthy",
+      "provider": "openrouter",
+      "fail_count": 0,
+      "last_ok": "2026-03-20T12:38:31.278640+00:00",
+      "last_check": "2026-03-20T12:38:31.278640+00:00"
+    },
+    "agent2": {
+      "status": "healthy",
+      "provider": "deepseek",
+      "fail_count": 0,
+      "last_ok": "2026-03-20T12:38:32.109827+00:00",
+      "last_check": "2026-03-20T12:38:32.109827+00:00"
+    },
+    "agent3": {
+      "status": "healthy",
+      "provider": "deepseek",
+      "fail_count": 0,
+      "last_ok": "2026-03-20T12:38:32.109977+00:00",
+      "last_check": "2026-03-20T12:38:32.109977+00:00"
+    },
+    "agent4": {
+      "status": "healthy",
+      "provider": "anthropic",
+      "fail_count": 0,
+      "last_ok": "2026-03-20T12:38:33.013663+00:00",
+      "last_check": "2026-03-20T12:38:33.013663+00:00"
+    },
+    "agent5": {
+      "status": "healthy",
+      "provider": "anthropic",
+      "fail_count": 0,
+      "last_ok": "2026-03-20T12:38:33.013820+00:00",
+      "last_check": "2026-03-20T12:38:33.013820+00:00"
+    },
+    "agent6": {
+      "status": "healthy",
+      "provider": "modelstudio",
+      "fail_count": 0,
+      "last_ok": "2026-03-20T12:38:34.545432+00:00",
+      "last_check": "2026-03-20T12:38:34.545432+00:00"
+    },
+    "agent7": {
+      "status": "healthy",
+      "provider": "modelstudio",
+      "fail_count": 0,
+      "last_ok": "2026-03-20T12:38:34.545576+00:00",
+      "last_check": "2026-03-20T12:38:34.545576+00:00"
+    },
+    "agent8": {
+      "status": "healthy",
+      "provider": "modelstudio",
+      "fail_count": 0,
+      "last_ok": "2026-03-20T12:38:34.545635+00:00",
+      "last_check": "2026-03-20T12:38:34.545635+00:00"
+    }
+  },
+  "pairs": [
+    {
+      "primary": "agent1",
+      "backup": "agent5",
+      "role": "Orchestrator"
+    },
+    {
+      "primary": "agent2",
+      "backup": "agent6",
+      "role": "Creative"
+    },
+    {
+      "primary": "agent3",
+      "backup": "agent7",
+      "role": "Analytical"
+    },
+    {
+      "primary": "agent4",
+      "backup": "agent8",
+      "role": "Technical"
+    }
+  ]
+}

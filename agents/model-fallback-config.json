@@ -1,0 +1,116 @@
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "openrouter/z-ai/glm-4.7-flash",
+        "fallbacks": [
+          "deepseek/deepseek-chat",
+          "modelstudio/qwen3.5-plus",
+          "openrouter/google/gemini-2.5-flash"
+        ]
+      }
+    },
+    "list": [
+      {
+        "id": "main"
+      },
+      {
+        "id": "agent1",
+        "name": "agent1",
+        "model": {
+          "primary": "openrouter/google/gemini-2.5-flash",
+          "fallbacks": [
+            "deepseek/deepseek-chat",
+            "modelstudio/qwen3.5-plus",
+            "openrouter/z-ai/glm-4.7-flash"
+          ]
+        }
+      },
+      {
+        "id": "agent3",
+        "name": "agent3",
+        "model": {
+          "primary": "deepseek/deepseek-reasoner",
+          "fallbacks": [
+            "modelstudio/qwen3-max",
+            "deepseek/deepseek-chat",
+            "openrouter/google/gemini-2.5-flash"
+          ]
+        }
+      },
+      {
+        "id": "agent2",
+        "name": "agent2",
+        "model": {
+          "primary": "deepseek/deepseek-chat",
+          "fallbacks": [
+            "modelstudio/qwen3.5-plus",
+            "openrouter/google/gemini-2.5-flash",
+            "anthropic/claude-haiku-4-5"
+          ]
+        }
+      },
+      {
+        "id": "agent4",
+        "name": "agent4",
+        "model": {
+          "primary": "anthropic/claude-opus-4-6",
+          "fallbacks": [
+            "anthropic/claude-haiku-4-5",
+            "modelstudio/qwen3-coder-next",
+            "deepseek/deepseek-chat",
+            "openrouter/google/gemini-2.5-flash"
+          ]
+        }
+      },
+      {
+        "id": "agent5",
+        "name": "agent5",
+        "model": {
+          "primary": "anthropic/claude-haiku-4-5",
+          "fallbacks": [
+            "modelstudio/qwen3.5-plus",
+            "deepseek/deepseek-chat",
+            "openrouter/google/gemini-2.5-flash"
+          ]
+        }
+      },
+      {
+        "id": "agent6",
+        "name": "agent6",
+        "model": {
+          "primary": "modelstudio/qwen3.5-plus",
+          "fallbacks": [
+            "deepseek/deepseek-chat",
+            "openrouter/google/gemini-2.5-flash",
+            "anthropic/claude-haiku-4-5"
+          ]
+        }
+      },
+      {
+        "id": "agent7",
+        "name": "agent7",
+        "model": {
+          "primary": "modelstudio/qwen3-max",
+          "fallbacks": [
+            "deepseek/deepseek-reasoner",
+            "modelstudio/qwen3.5-plus",
+            "openrouter/google/gemini-2.5-flash"
+          ]
+        }
+      },
+      {
+        "id": "agent8",
+        "name": "agent8",
+        "model": {
+          "primary": "modelstudio/qwen3-coder-next",
+          "fallbacks": [
+            "modelstudio/qwen3-coder-plus",
+            "deepseek/deepseek-chat",
+            "anthropic/claude-haiku-4-5"
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "pairs": [
+    {
+      "primary": "agent1",
+      "backup": "agent5",
+      "chain": ["agent1", "agent5", "agent6", "agent7", "agent8"],
+      "role": "Orchestrator/Telegram handler"
+    },
+    {
+      "primary": "agent2",
+      "backup": "agent6",
+      "chain": ["agent2", "agent6", "agent7"],
+      "role": "Creative"
+    },
+    {
+      "primary": "agent3",
+      "backup": "agent7",
+      "chain": ["agent3", "agent7", "agent8"],
+      "role": "Analytical"
+    },
+    {
+      "primary": "agent4",
+      "backup": "agent8",
+      "chain": ["agent4", "agent8", "agent7"],
+      "role": "Technical"
+    }
+  ],
+  "global_fallback_chain": ["agent5", "agent6", "agent7", "agent8"],
+  "telegram_primary_agent": "agent1",
+  "health_check_interval_seconds": 60,
+  "failover_threshold": 2,
+  "recovery_threshold": 3,
+  "restart_gateway_on_failover": true,
+  "notify_telegram": true,
+  "openclaw_config": "/root/.openclaw/openclaw.json",
+  "state_file": "/root/openclaw/health_state.json",
+  "log_file": "/root/openclaw/failover.log",
+  "shared_memory_file": "/root/.openclaw/workspace/health-state.json"
+}
