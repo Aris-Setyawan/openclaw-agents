@@ -1,13 +1,22 @@
 # Model Configuration per Agent
 
 > Last updated: 2026-03-21
-> Strategy: OpenRouter untuk semua Gemini — Google direct API tidak kompatibel karena OpenClaw mengirim parameter `store` yang tidak dikenal Google
+> Strategy: Google direct API via transparent proxy (port 9998) — strip params yang tidak didukung
 
-## Kenapa Tidak Bisa Google Direct API
-OpenClaw mengirim parameter non-standard ke semua provider:
-- `store` — tidak dikenal Google → HTTP 400 `Unknown name "store": Cannot find field`
-- `max_completion_tokens` — format OpenAI baru, belum semua endpoint support
-- **Solusi:** Gunakan OpenRouter yang otomatis strip parameter tak dikenal sebelum forward ke Google
+## Google Direct API via Proxy (SOLVED)
+OpenClaw mengirim parameter non-standard yang ditolak Google:
+- `store` → `Unknown name "store": Cannot find field`
+- `thinking` / `thinking_effort` → tidak dikenal Google OpenAI-compat endpoint
+- `max_completion_tokens` → harus di-rename ke `max_tokens`
+
+**Solusi:** `google-proxy.py` di port 9998 (systemd: `openclaw-google-proxy`)
+- Strip: `store`, `user`, `thinking`, `thinking_effort`
+- Rename: `max_completion_tokens` → `max_tokens`
+- Forward ke: `https://generativelanguage.googleapis.com/v1beta/openai`
+
+**Syarat model config:**
+- `reasoning: true` harus di-set untuk model yang mau terima thinking requests
+- Tanpa ini, OpenClaw skip provider saat thinking mode aktif → fallback ke Haiku
 
 ## Routing Logic
 - **Chat / Q&A / Analisis file** → agent1 (Gemini 2.5 Flash direct, no markup)

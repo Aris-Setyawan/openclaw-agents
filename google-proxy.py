@@ -9,7 +9,7 @@ import http.server, urllib.request, json, sys, os, gzip
 PORT = int(os.environ.get("PROXY_PORT", 9998))
 GOOGLE_BASE = "https://generativelanguage.googleapis.com/v1beta/openai"
 # Params OpenClaw sends that Google doesn't support
-STRIP_PARAMS = {"store", "user"}
+STRIP_PARAMS = {"store", "user", "thinking", "thinking_effort"}
 
 class ProxyHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
@@ -23,6 +23,16 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             payload = json.loads(body)
         except Exception:
             payload = None
+
+        # Debug: log model and stripped params
+        if payload:
+            model = payload.get("model", "?")
+            stripped = [p for p in STRIP_PARAMS if p in payload]
+            has_thinking = "thinking" in payload or any(
+                isinstance(m, dict) and "thinking" in str(m)
+                for m in payload.get("messages", [])
+            )
+            print(f"[proxy] model={model} stripped={stripped} thinking={has_thinking}", flush=True)
 
         if payload:
             # Strip unsupported params
