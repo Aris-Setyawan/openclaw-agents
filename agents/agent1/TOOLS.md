@@ -89,7 +89,7 @@ echo "agent3 jawab: $result"
 
 ### Primary: Gemini Image Gen (GRATIS) 🍌
 ```bash
-export GEMINI_API_KEY=<dari auth-profiles.json gemini:default>
+export GEMINI_API_KEY=<your_gemini_api_key_here>
 export PATH="$HOME/.local/bin:$PATH"
 SKILL=/www/server/nvm/versions/node/v22.20.0/lib/node_modules/openclaw/skills/nano-banana-pro
 uv run $SKILL/scripts/generate_image.py --prompt "deskripsi gambar" --filename "/tmp/output.png" --resolution 1K
