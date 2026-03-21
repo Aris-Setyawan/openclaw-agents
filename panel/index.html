@@ -456,6 +456,9 @@ body {
     <div class="nav-item" data-tab="creative">
       <span class="icon">◈</span> Creative Config
     </div>
+    <div class="nav-item" data-tab="settings">
+      <span class="icon">⚙</span> Settings
+    </div>
   </nav>
   <div class="sidebar-footer">
     <div><span class="dot"></span>Connected</div>
@@ -598,6 +601,52 @@ body {
       </div>
     </section>
 
+    <!-- ── SETTINGS ── -->
+    <section class="section" id="tab-settings">
+      <div class="section-title">Panel Settings</div>
+      <div class="card">
+        <div class="card-title">Ganti Panel Token</div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;font-family:var(--mono)">
+          Token saat ini: <span id="cur-token-display" style="color:var(--accent)">—</span>
+        </p>
+        <div class="key-row" style="grid-template-columns:140px 1fr auto">
+          <div class="key-label">Token Baru</div>
+          <input class="key-input" id="new-token-input" type="password"
+            placeholder="min. 8 karakter" autocomplete="new-password">
+          <button class="btn btn-ghost btn-sm" id="toggle-token-vis"
+            onclick="toggleTokenVis()">Lihat</button>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+          <button class="btn btn-primary" onclick="changeToken()">Ganti Token</button>
+          <span style="font-size:11px;font-family:var(--mono);color:var(--text-dim)">
+            Token disimpan permanen — berlaku langsung tanpa restart
+          </span>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">Info Panel</div>
+        <table style="font-family:var(--mono);font-size:11px;border-collapse:collapse;width:100%">
+          <tr>
+            <td style="color:var(--text-dim);padding:5px 0;width:160px">Backend Port</td>
+            <td style="color:var(--text)">7842</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-dim);padding:5px 0">Token File</td>
+            <td style="color:var(--text)">/root/.openclaw/panel-token.txt</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-dim);padding:5px 0">Service</td>
+            <td style="color:var(--text)">openclaw-panel.service</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-dim);padding:5px 0">Auth Header</td>
+            <td style="color:var(--text)">X-Panel-Token</td>
+          </tr>
+        </table>
+      </div>
+    </section>
+
   </div><!-- /content -->
 </div><!-- /main -->
 
@@ -606,7 +655,7 @@ body {
 
 <script>
 const API = '';  // same origin
-const TOKEN = prompt('Panel Token:', '') || 'openclaw-panel-2026';
+let TOKEN = prompt('Panel Token:', '') || 'openclaw-panel-2026';
 
 const PROVIDERS = [
   { id:'google',      label:'Gemini API Key',      placeholder:'AIzaSy...' },
@@ -842,9 +891,56 @@ async function saveCreative() {
   } catch(e) { showToast('Gagal save creative config', 'err'); }
 }
 
+// ── SETTINGS ──
+function renderSettings() {
+  const masked = TOKEN.length > 6
+    ? TOKEN.slice(0, 3) + '•'.repeat(TOKEN.length - 6) + TOKEN.slice(-3)
+    : '•'.repeat(TOKEN.length);
+  document.getElementById('cur-token-display').textContent = masked;
+}
+
+function toggleTokenVis() {
+  const inp = document.getElementById('new-token-input');
+  const btn = document.getElementById('toggle-token-vis');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    btn.textContent = 'Sembunyikan';
+  } else {
+    inp.type = 'password';
+    btn.textContent = 'Lihat';
+  }
+}
+
+async function changeToken() {
+  const newTok = document.getElementById('new-token-input').value.trim();
+  if (!newTok || newTok.length < 8) {
+    showToast('Token minimal 8 karakter', 'err');
+    return;
+  }
+  try {
+    const r = await fetch('/api/token', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'X-Panel-Token': TOKEN},
+      body: JSON.stringify({token: newTok})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      TOKEN = newTok;
+      document.getElementById('new-token-input').value = '';
+      renderSettings();
+      showToast('✓ Token berhasil diganti', 'ok');
+    } else {
+      showToast('Error: ' + (d.error || 'unknown'), 'err');
+    }
+  } catch(e) {
+    showToast('Gagal ganti token', 'err');
+  }
+}
+
 // ── INIT ──
 loadStatus();
 loadConfig();
+renderSettings();
 setInterval(loadStatus, 30000);
 </script>
 </body>

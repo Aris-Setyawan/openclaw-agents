@@ -12,8 +12,21 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-PANEL_TOKEN = os.environ.get("PANEL_TOKEN", "openclaw-panel-2026")
 PANEL_DIR   = os.path.dirname(os.path.abspath(__file__))
+
+BASE_EARLY   = "/root/.openclaw"
+TOKEN_FILE   = f"{BASE_EARLY}/panel-token.txt"
+
+def _load_token():
+    env = os.environ.get("PANEL_TOKEN")
+    if env:
+        return env
+    try:
+        return open(TOKEN_FILE).read().strip() or "openclaw-panel-2026"
+    except:
+        return "openclaw-panel-2026"
+
+PANEL_TOKEN = _load_token()
 
 @app.route("/")
 def index():
@@ -192,6 +205,19 @@ def api_agents():
         cfg["agents"]["list"] = agents_map
 
     write_json(OPENCLAW_CFG, cfg)
+    return jsonify({"ok": True})
+
+@app.route("/api/token", methods=["POST"])
+def api_token():
+    global PANEL_TOKEN
+    if not auth(request): return jsonify({"error": "unauthorized"}), 401
+    data = request.json or {}
+    new_token = data.get("token", "").strip()
+    if not new_token or len(new_token) < 8:
+        return jsonify({"error": "Token minimal 8 karakter"}), 400
+    PANEL_TOKEN = new_token
+    os.makedirs(BASE_EARLY, exist_ok=True)
+    open(TOKEN_FILE, "w").write(new_token)
     return jsonify({"ok": True})
 
 @app.route("/api/creative", methods=["POST"])
