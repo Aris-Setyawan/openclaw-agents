@@ -20,6 +20,12 @@ if [[ "$MIME" == image/* ]]; then
     -F "chat_id=${CHAT_ID}" \
     -F "photo=@${FILE}" \
     -F "caption=${CAPTION}")
+elif [[ "$MIME" == video/* ]]; then
+  RESULT=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendVideo" \
+    -F "chat_id=${CHAT_ID}" \
+    -F "video=@${FILE}" \
+    -F "caption=${CAPTION}" \
+    -F "supports_streaming=true")
 else
   RESULT=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" \
     -F "chat_id=${CHAT_ID}" \

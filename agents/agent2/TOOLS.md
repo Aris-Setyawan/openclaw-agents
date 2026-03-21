@@ -99,6 +99,7 @@ Agent1 akan delegate generate gambar ke sini. Kamu yang eksekusi.
 /root/.openclaw/workspace/scripts/generate-image.sh "[deskripsi], photorealistic, professional photography, natural lighting, 4K, lifelike" "[caption]"
 ```
 Script otomatis handle: API key → Gemini → fallback DALL-E → kirim Telegram.
+> ❌ Output script `IMAGE_SENT_OK` — **JANGAN kirim file lagi**, sudah terkirim otomatis.
 
 ### Fallback: DALL-E 3 (hanya jika Gemini gagal / rate limit)
 ```bash
@@ -135,4 +136,5 @@ Agent1 delegate video gen ke sini via bash. Kamu yang eksekusi.
 | `veo-3.1-generate-preview` | Terbaru (preview) |
 
 > Script otomatis: ambil API key → submit ke Veo → poll sampai selesai → download → kirim Telegram
+> ❌ Output script `VIDEO_SENT_OK` — **JANGAN kirim file lagi**, sudah terkirim otomatis.
 > Video generation butuh waktu 1-3 menit — kasih tau user untuk tunggu

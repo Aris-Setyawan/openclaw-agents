@@ -49,7 +49,7 @@ echo "$GEN_RESULT" >&2
 
 if [ -f "$OUT" ]; then
   /root/.openclaw/workspace/scripts/telegram-send.sh "$OUT" "$CAPTION"
-  echo "$OUT"
+  echo "IMAGE_SENT_OK"
   exit 0
 fi
 
@@ -62,7 +62,7 @@ DALLE_FILE=$(ls "$OUT_DIR"/*.png 2>/dev/null | head -1)
 
 if [ -n "$DALLE_FILE" ]; then
   /root/.openclaw/workspace/scripts/telegram-send.sh "$DALLE_FILE" "$CAPTION"
-  echo "$DALLE_FILE"
+  echo "IMAGE_SENT_OK"
   exit 0
 fi
 

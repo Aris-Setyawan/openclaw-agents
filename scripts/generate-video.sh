@@ -94,7 +94,8 @@ if samples:
       SIZE=$(ls -lh "$OUT" | awk '{print $5}')
       echo "[veo] Video saved: $OUT ($SIZE)" >&2
       /root/.openclaw/workspace/scripts/telegram-send.sh "$OUT" "$CAPTION"
-      echo "$OUT"
+      echo "[veo] DONE — video sudah dikirim ke Telegram, JANGAN kirim lagi" >&2
+      echo "VIDEO_SENT_OK"
       exit 0
     else
       echo "[veo] ERROR: File kosong atau tidak ada" >&2
