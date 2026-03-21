@@ -88,34 +88,22 @@ echo "agent3 jawab: $result"
 ## Image Generation
 
 ### ⚠️ ATURAN WAJIB IMAGE GEN
-1. **Default style: SELALU photorealistic / fotografi** kecuali user eksplisit minta anime/kartun/ilustrasi
-2. **Selalu coba Gemini dulu** (nano-banana-pro) — tidak ada content filter ketat seperti DALL-E
-3. **DALL-E hanya fallback** jika Gemini gagal/rate limit
+1. **JANGAN generate gambar sendiri** — delegate ke Agent 2 via bash
+2. **Default style: SELALU photorealistic** kecuali user eksplisit minta anime/kartun
+3. Setelah Agent 2 selesai generate, kirim ke Telegram pakai `telegram-send.sh`
 
-### Template Prompt Realistik (wajib pakai untuk human/foto)
-```
-[deskripsi subjek], photorealistic, professional photography, natural lighting, 4K, lifelike, high detail
-```
-
-### Primary: Gemini Image Gen (nano-banana-pro) 🍌
+### Flow Wajib: Delegate ke Agent 2
 ```bash
-export GEMINI_API_KEY=$(python3 -c "import json; d=json.load(open('/root/.openclaw/agents/agent1/agent/auth-profiles.json')); print(d['profiles']['google:default']['key'])")
-export PATH="$HOME/.local/bin:$PATH"
-SKILL=/www/server/nvm/versions/node/v22.20.0/lib/node_modules/openclaw/skills/nano-banana-pro
-OUT=/tmp/img-$(date +%s).png
+OPENCLAW=/www/server/nvm/versions/node/v22.20.0/bin/openclaw
 
-uv run $SKILL/scripts/generate_image.py \
-  --prompt "deskripsi subjek, photorealistic, professional photography, natural lighting, 4K, lifelike" \
-  --filename "$OUT" --resolution 1K
+# Minta agent2 generate gambar — sertakan style photorealistic di prompt
+result=$($OPENCLAW agent --agent agent2 --message "Generate gambar: [deskripsi], photorealistic, professional photography, natural lighting, 4K, lifelike. Simpan ke /tmp/img-$(date +%s).png dan balas dengan path file-nya saja." 2>/dev/null)
 
-# Langsung kirim ke Telegram setelah generate:
-/root/.openclaw/workspace/scripts/telegram-send.sh "$OUT" "Caption gambar"
+# Ambil path dari response agent2
+img_path=$(echo "$result" | grep -oP '/tmp/[^\s]+\.png' | head -1)
+
+# Kirim ke Telegram
+/root/.openclaw/workspace/scripts/telegram-send.sh "$img_path" "Caption gambar"
 ```
 
-### Fallback: DALL-E 3 (hanya jika Gemini gagal)
-```bash
-SKILL=/www/server/nvm/versions/node/v22.20.0/lib/node_modules/openclaw/skills/openai-image-gen
-OUT_DIR=/tmp/imgout-$(date +%s)
-python3 $SKILL/scripts/gen.py --prompt "deskripsi" --model dall-e-3 --count 1 --out-dir $OUT_DIR
-# Jika DALL-E juga kena content filter → HANYA pakai Gemini, jangan retry DALL-E
-```
+### Agent 2 yang akan handle (lihat TOOLS.md agent2 untuk detail teknis generate)

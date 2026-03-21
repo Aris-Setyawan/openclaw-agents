@@ -85,21 +85,34 @@ echo "agent3 jawab: $result"
 - Coding/teknis → agent4 (Claude Opus)
 - Jika primary down → coba agent 5/6/7/8 (backup pair)
 
-## Image Generation
+## Image Generation ⭐ INI TUGAS AGENT 2
 
-### Primary: Gemini Image Gen (GRATIS) 🍌
+Agent1 akan delegate generate gambar ke sini. Kamu yang eksekusi.
+
+### ⚠️ ATURAN WAJIB
+1. **Default: SELALU photorealistic** kecuali diminta anime/kartun/ilustrasi
+2. Wajib tambahkan ke prompt: `photorealistic, professional photography, natural lighting, 4K, lifelike`
+3. Coba **Gemini dulu** → DALL-E hanya fallback kalau Gemini gagal
+
+### Primary: Gemini Image Gen (nano-banana-pro) 🍌
 ```bash
-export GEMINI_API_KEY=<dari auth-profiles.json gemini:default>
+export GEMINI_API_KEY=$(python3 -c "import json; d=json.load(open('/root/.openclaw/agents/agent1/agent/auth-profiles.json')); print(d['profiles']['google:default']['key'])")
 export PATH="$HOME/.local/bin:$PATH"
 SKILL=/www/server/nvm/versions/node/v22.20.0/lib/node_modules/openclaw/skills/nano-banana-pro
-uv run $SKILL/scripts/generate_image.py --prompt "deskripsi gambar" --filename "/tmp/output.png" --resolution 1K
+OUT=/tmp/img-$(date +%s).png
 
-# Setelah generate, kirim ke Telegram:
-/root/.openclaw/workspace/scripts/telegram-send.sh /tmp/output.png "Caption gambar"
+uv run $SKILL/scripts/generate_image.py \
+  --prompt "[deskripsi], photorealistic, professional photography, natural lighting, 4K, lifelike" \
+  --filename "$OUT" --resolution 1K
+
+echo "$OUT"  # balas dengan path file agar agent1 bisa kirim ke Telegram
 ```
 
-### Fallback: DALL-E 3 (berbayar, pakai OpenAI key)
+### Fallback: DALL-E 3 (hanya jika Gemini gagal / rate limit)
 ```bash
 SKILL=/www/server/nvm/versions/node/v22.20.0/lib/node_modules/openclaw/skills/openai-image-gen
-python3 $SKILL/scripts/gen.py --prompt "deskripsi" --model dall-e-3 --count 1 --out-dir /tmp/imgout
+OUT_DIR=/tmp/imgout-$(date +%s)
+python3 $SKILL/scripts/gen.py --prompt "[deskripsi]" --model dall-e-3 --count 1 --out-dir $OUT_DIR
+ls $OUT_DIR/*.png | head -1  # balas dengan path file
 ```
+> Jika DALL-E kena content filter → tetap pakai Gemini, jangan retry DALL-E
