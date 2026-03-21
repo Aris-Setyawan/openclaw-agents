@@ -55,6 +55,7 @@ PROVIDER_KEYS = {
     "deepseek":    ("deepseek:default", "token"),
     "modelstudio": ("modelstudio:default","key"),
     "anthropic":   ("anthropic:default","token"),
+    "kieai":       ("kieai:default",    "key"),
 }
 
 def auth(req):
