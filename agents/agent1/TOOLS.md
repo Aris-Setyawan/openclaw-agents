@@ -92,18 +92,8 @@ echo "agent3 jawab: $result"
 2. **Default style: SELALU photorealistic** kecuali user eksplisit minta anime/kartun
 3. Setelah Agent 2 selesai generate, kirim ke Telegram pakai `telegram-send.sh`
 
-### Flow Wajib: Delegate ke Agent 2
+### Cara Generate — CUKUP SATU COMMAND:
 ```bash
-OPENCLAW=/www/server/nvm/versions/node/v22.20.0/bin/openclaw
-
-# Minta agent2 generate gambar — sertakan style photorealistic di prompt
-result=$($OPENCLAW agent --agent agent2 --message "Generate gambar: [deskripsi], photorealistic, professional photography, natural lighting, 4K, lifelike. Simpan ke /tmp/img-$(date +%s).png dan balas dengan path file-nya saja." 2>/dev/null)
-
-# Ambil path dari response agent2
-img_path=$(echo "$result" | grep -oP '/tmp/[^\s]+\.png' | head -1)
-
-# Kirim ke Telegram
-/root/.openclaw/workspace/scripts/telegram-send.sh "$img_path" "Caption gambar"
+/root/.openclaw/workspace/scripts/generate-image.sh "[deskripsi], photorealistic, professional photography, natural lighting, 4K" "[caption]"
 ```
-
-### Agent 2 yang akan handle (lihat TOOLS.md agent2 untuk detail teknis generate)
+Script ini otomatis: ambil API key → generate via Gemini → fallback DALL-E → kirim ke Telegram.

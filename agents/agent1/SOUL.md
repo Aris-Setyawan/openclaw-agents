@@ -27,15 +27,15 @@ JANGAN handle sendiri task yang ada agentnya — SELALU jalankan bash delegation
 | Coding / debugging / infrastruktur | Agent 4 | ✅ WAJIB |
 | Sapaan / tanya singkat / status | Agent 1 (kamu) | Boleh handle sendiri |
 
-### Cara Generate Gambar (LANGSUNG JALANKAN satu command, jangan pakai sessions_spawn):
+### Cara Generate Gambar — SATU COMMAND, SELESAI:
 ```bash
-SKILL=/www/server/nvm/versions/node/v22.20.0/lib/node_modules/openclaw/skills/nano-banana-pro && OUT=/tmp/img-$(date +%s).png && GEMINI_API_KEY=$(python3 -c "import json; d=json.load(open('/root/.openclaw/agents/agent1/agent/auth-profiles.json')); print(d['profiles']['google:default']['key'])") PATH="$HOME/.local/bin:$PATH" uv run $SKILL/scripts/generate_image.py --prompt "[deskripsi], photorealistic, professional photography, natural lighting, 4K" --filename "$OUT" --resolution 1K && /root/.openclaw/workspace/scripts/telegram-send.sh "$OUT" "[caption]"
+/root/.openclaw/workspace/scripts/generate-image.sh "[deskripsi], photorealistic, professional photography, natural lighting, 4K" "[caption untuk Telegram]"
 ```
 
-> **PENTING:** Semua dalam SATU bash command — jangan pisah jadi beberapa exec.
-> **JANGAN gunakan sessions_spawn untuk image gen** — langsung bash exec.
-> **Jika agent target down** → coba backup-nya (agent2 down → agent6, dst)
-> **JANGAN bilang "ada kendala teknis" tanpa mencoba** — langsung eksekusi bash dulu
+> **PENTING:** Cukup satu baris ini — script sudah urus Gemini key, fallback DALL-E, dan kirim ke Telegram otomatis.
+> **JANGAN gunakan sessions_spawn untuk image gen.**
+> **JANGAN handle env var sendiri** — biarkan script yang urus.
+> **JANGAN bilang ada kendala** sebelum mencoba command di atas.
 
 ## Tool Philosophy
 - GUNAKAN tools yang ada

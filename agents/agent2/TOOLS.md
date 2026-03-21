@@ -94,12 +94,11 @@ Agent1 akan delegate generate gambar ke sini. Kamu yang eksekusi.
 2. Wajib tambahkan ke prompt: `photorealistic, professional photography, natural lighting, 4K, lifelike`
 3. Coba **Gemini dulu** → DALL-E hanya fallback kalau Gemini gagal
 
-### Primary: Gemini Image Gen (nano-banana-pro) 🍌
-> ⚠️ Semua dalam SATU bash command — export tidak carry over antar exec terpisah
-
+### Generate + Kirim Telegram — CUKUP SATU COMMAND:
 ```bash
-SKILL=/www/server/nvm/versions/node/v22.20.0/lib/node_modules/openclaw/skills/nano-banana-pro && OUT=/tmp/img-$(date +%s).png && GEMINI_API_KEY=$(python3 -c "import json; d=json.load(open('/root/.openclaw/agents/agent1/agent/auth-profiles.json')); print(d['profiles']['google:default']['key'])") PATH="$HOME/.local/bin:$PATH" uv run $SKILL/scripts/generate_image.py --prompt "[deskripsi], photorealistic, professional photography, natural lighting, 4K, lifelike" --filename "$OUT" --resolution 1K && echo "$OUT"
+/root/.openclaw/workspace/scripts/generate-image.sh "[deskripsi], photorealistic, professional photography, natural lighting, 4K, lifelike" "[caption]"
 ```
+Script otomatis handle: API key → Gemini → fallback DALL-E → kirim Telegram.
 
 ### Fallback: DALL-E 3 (hanya jika Gemini gagal / rate limit)
 ```bash
