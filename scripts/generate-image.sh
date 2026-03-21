@@ -1,13 +1,16 @@
 #!/bin/bash
-# Generate gambar + kirim ke Telegram dalam satu command
-# Usage: generate-image.sh "<prompt>" "[caption]"
-# Output: path file yang di-generate
+# Generate gambar + kirim ke Telegram
+# Usage: generate-image.sh "<prompt>" "[caption]" "[ref_image_path]"
+#
+# Jika ref_image_path disertakan → edit/compose dari gambar referensi (pertahankan wajah/pose)
+# Jika tidak → text-to-image biasa
 
 PROMPT="$1"
 CAPTION="${2:-Gambar dari Gemini}"
+REF_IMAGE="$3"
 
 if [ -z "$PROMPT" ]; then
-  echo "Usage: generate-image.sh <prompt> [caption]" >&2
+  echo "Usage: generate-image.sh <prompt> [caption] [ref_image_path]" >&2
   exit 1
 fi
 
@@ -25,13 +28,24 @@ export PATH="/root/.local/bin:/www/server/nvm/versions/node/v22.20.0/bin:$PATH"
 SKILL=/www/server/nvm/versions/node/v22.20.0/lib/node_modules/openclaw/skills/nano-banana-pro
 OUT=/tmp/img-$(date +%s).png
 
-# Generate dengan Gemini
-if uv run "$SKILL/scripts/generate_image.py" \
+# Build command — pakai --input-image jika ada gambar referensi
+if [ -n "$REF_IMAGE" ] && [ -f "$REF_IMAGE" ]; then
+  echo "[generate-image] Pakai referensi: $REF_IMAGE" >&2
+  GEN_RESULT=$(uv run "$SKILL/scripts/generate_image.py" \
+    --prompt "$PROMPT" \
+    --input-image "$REF_IMAGE" \
+    --filename "$OUT" 2>&1)
+else
+  echo "[generate-image] Text-to-image (no reference)" >&2
+  GEN_RESULT=$(uv run "$SKILL/scripts/generate_image.py" \
     --prompt "$PROMPT" \
     --filename "$OUT" \
-    --resolution 1K 2>&1; then
+    --resolution 1K 2>&1)
+fi
 
-  # Kirim ke Telegram
+echo "$GEN_RESULT" >&2
+
+if [ -f "$OUT" ]; then
   /root/.openclaw/workspace/scripts/telegram-send.sh "$OUT" "$CAPTION"
   echo "$OUT"
   exit 0

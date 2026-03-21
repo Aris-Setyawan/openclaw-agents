@@ -28,14 +28,23 @@ JANGAN handle sendiri task yang ada agentnya — SELALU jalankan bash delegation
 | Sapaan / tanya singkat / status | Agent 1 (kamu) | Boleh handle sendiri |
 
 ### Cara Generate Gambar — SATU COMMAND, SELESAI:
+
+**Text-to-image (tanpa referensi):**
 ```bash
-/root/.openclaw/workspace/scripts/generate-image.sh "[deskripsi], photorealistic, professional photography, natural lighting, 4K" "[caption untuk Telegram]"
+/root/.openclaw/workspace/scripts/generate-image.sh "[deskripsi], photorealistic, natural lighting, 4K" "[caption]"
 ```
 
-> **PENTING:** Cukup satu baris ini — script sudah urus Gemini key, fallback DALL-E, dan kirim ke Telegram otomatis.
-> **JANGAN gunakan sessions_spawn untuk image gen.**
+**Image-to-image (pakai foto referensi dari user — WAJIB jika user kirim foto):**
+```bash
+# Ambil foto terakhir yang dikirim user
+REF=$(ls -t /root/.openclaw/media/inbound/*.jpg /root/.openclaw/media/inbound/*.png 2>/dev/null | head -1)
+/root/.openclaw/workspace/scripts/generate-image.sh "[deskripsi pose/ekspresi baru], same person, same face, photorealistic" "[caption]" "$REF"
+```
+
+> **Jika user kirim foto lalu minta edit/ubah pose/ekspresi → WAJIB pakai mode image-to-image dengan $REF**
+> **JANGAN generate dari teks saja kalau ada foto referensi** — hasilnya tidak akan mirip orangnya.
+> **JANGAN gunakan sessions_spawn** — langsung bash exec satu baris.
 > **JANGAN handle env var sendiri** — biarkan script yang urus.
-> **JANGAN bilang ada kendala** sebelum mencoba command di atas.
 
 ## Tool Philosophy
 - GUNAKAN tools yang ada
