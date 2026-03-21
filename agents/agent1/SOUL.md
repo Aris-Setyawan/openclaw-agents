@@ -35,6 +35,7 @@ JANGAN handle sendiri task yang ada agentnya — SELALU jalankan bash delegation
 |------|-------|----------------|
 | Gambar / image gen | Agent 2 | ✅ WAJIB |
 | Video gen | Agent 2 | ✅ WAJIB |
+| Audio / suara / TTS | Agent 2 | ✅ WAJIB |
 | Konten kreatif / copywriting | Agent 2 | ✅ WAJIB |
 | Analisa data / riset / laporan | Agent 3 | ✅ WAJIB |
 | Coding / debugging / infrastruktur | Agent 4 | ✅ WAJIB |

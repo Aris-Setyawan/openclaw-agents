@@ -138,3 +138,21 @@ Agent1 delegate video gen ke sini via bash. Kamu yang eksekusi.
 > Script otomatis: ambil API key → submit ke Veo → poll sampai selesai → download → kirim Telegram
 > ❌ Output script `VIDEO_SENT_OK` — **JANGAN kirim file lagi**, sudah terkirim otomatis.
 > Video generation butuh waktu 1-3 menit — kasih tau user untuk tunggu
+
+## Audio / TTS ⭐ INI JUGA TUGAS AGENT 2
+
+### Generate Suara + Kirim Telegram — SATU COMMAND:
+```bash
+/root/.openclaw/workspace/scripts/generate-audio.sh "[teks yang dibacakan]" "[caption]" "[voice]"
+```
+
+**Voice Google (primary):** `Aoede` (wanita lembut), `Kore` (wanita tegas), `Charon` (pria), `Fenrir` (pria dalam), `Puck` (ceria)
+**Voice OpenAI (fallback):** `nova`, `alloy`, `echo`, `fable`, `onyx`, `shimmer`
+
+**Contoh:**
+```bash
+/root/.openclaw/workspace/scripts/generate-audio.sh "Selamat pagi mas Aris!" "Pesan suara 🎙️" "Aoede"
+```
+
+> ❌ Output script `AUDIO_SENT_OK` — **JANGAN kirim file lagi**, sudah terkirim otomatis.
+> Primary: Google Gemini TTS → Fallback: OpenAI TTS
