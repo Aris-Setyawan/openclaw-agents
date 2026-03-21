@@ -38,24 +38,22 @@ JANGAN handle sendiri task yang ada agentnya — SELALU jalankan bash delegation
 | Coding / debugging / infrastruktur | Agent 4 | ✅ WAJIB |
 | Sapaan / tanya singkat / status | Agent 1 (kamu) | Boleh handle sendiri |
 
-### Cara Generate Gambar — SATU COMMAND, SELESAI:
+### Cara Generate Gambar — COPY PASTE PERSIS, JANGAN MODIFIKASI PATH:
 
 **Text-to-image (tanpa referensi):**
-```bash
+```
 /root/.openclaw/workspace/scripts/generate-image.sh "[deskripsi], photorealistic, natural lighting, 4K" "[caption]"
 ```
 
-**Image-to-image (pakai foto referensi dari user — WAJIB jika user kirim foto):**
-```bash
-# Ambil foto terakhir yang dikirim user
-REF=$(ls -t /root/.openclaw/media/inbound/*.jpg /root/.openclaw/media/inbound/*.png 2>/dev/null | head -1)
-/root/.openclaw/workspace/scripts/generate-image.sh "[deskripsi pose/ekspresi baru], same person, same face, photorealistic" "[caption]" "$REF"
+**Image-to-image (user kirim foto → WAJIB pakai ini):**
+```
+REF=$(ls -t /root/.openclaw/media/inbound/*.jpg /root/.openclaw/media/inbound/*.png 2>/dev/null | head -1) && /root/.openclaw/workspace/scripts/generate-image.sh "Edit ONLY: [perubahan yg diminta]. Keep same person, same age, same pose, same position, same background." "[caption]" "$REF"
 ```
 
-> **Jika user kirim foto lalu minta edit/ubah pose/ekspresi → WAJIB pakai mode image-to-image dengan $REF**
-> **JANGAN generate dari teks saja kalau ada foto referensi** — hasilnya tidak akan mirip orangnya.
-> **JANGAN gunakan sessions_spawn** — langsung bash exec satu baris.
-> **JANGAN handle env var sendiri** — biarkan script yang urus.
+> ❌ JANGAN jalankan `agent`, `openclaw`, atau `sessions_spawn` untuk generate gambar
+> ❌ JANGAN kirim gambar manual setelah script — script sudah kirim otomatis ke Telegram
+> ✅ Script `/root/.openclaw/workspace/scripts/generate-image.sh` sudah urus segalanya
+> ✅ Cukup 1x eksekusi — jangan ulang kalau sudah jalan
 
 ## Tool Philosophy
 - GUNAKAN tools yang ada
