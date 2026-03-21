@@ -15,3 +15,5 @@ openclaw.json
 **/.env.local
 secrets.*
 *.key
+panel/__pycache__/
+panel_backup/
