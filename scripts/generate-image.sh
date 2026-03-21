@@ -31,8 +31,10 @@ OUT=/tmp/img-$(date +%s).png
 # Build command — pakai --input-image jika ada gambar referensi
 if [ -n "$REF_IMAGE" ] && [ -f "$REF_IMAGE" ]; then
   echo "[generate-image] Pakai referensi: $REF_IMAGE" >&2
+  # Wrap prompt dengan instruksi preserve — jangan ubah umur, pose, posisi, baju, background
+  FULL_PROMPT="Edit ONLY the facial expression to: ${PROMPT}. Keep everything else EXACTLY the same: same person, same adult age, same body position, same pose, same clothes, same background, same lighting. Do NOT change age, do NOT change position, do NOT change body type."
   GEN_RESULT=$(uv run "$SKILL/scripts/generate_image.py" \
-    --prompt "$PROMPT" \
+    --prompt "$FULL_PROMPT" \
     --input-image "$REF_IMAGE" \
     --filename "$OUT" 2>&1)
 else
