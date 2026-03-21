@@ -87,19 +87,35 @@ echo "agent3 jawab: $result"
 
 ## Image Generation
 
-### Primary: Gemini Image Gen (GRATIS) 🍌
-```bash
-export GEMINI_API_KEY=<your_gemini_api_key_here>
-export PATH="$HOME/.local/bin:$PATH"
-SKILL=/www/server/nvm/versions/node/v22.20.0/lib/node_modules/openclaw/skills/nano-banana-pro
-uv run $SKILL/scripts/generate_image.py --prompt "deskripsi gambar" --filename "/tmp/output.png" --resolution 1K
+### ⚠️ ATURAN WAJIB IMAGE GEN
+1. **Default style: SELALU photorealistic / fotografi** kecuali user eksplisit minta anime/kartun/ilustrasi
+2. **Selalu coba Gemini dulu** (nano-banana-pro) — tidak ada content filter ketat seperti DALL-E
+3. **DALL-E hanya fallback** jika Gemini gagal/rate limit
 
-# Setelah generate, kirim ke Telegram:
-/root/.openclaw/workspace/scripts/telegram-send.sh /tmp/output.png "Caption gambar"
+### Template Prompt Realistik (wajib pakai untuk human/foto)
+```
+[deskripsi subjek], photorealistic, professional photography, natural lighting, 4K, lifelike, high detail
 ```
 
-### Fallback: DALL-E 3 (berbayar, pakai OpenAI key)
+### Primary: Gemini Image Gen (nano-banana-pro) 🍌
+```bash
+export GEMINI_API_KEY=$(python3 -c "import json; d=json.load(open('/root/.openclaw/agents/agent1/agent/auth-profiles.json')); print(d['profiles']['google:default']['key'])")
+export PATH="$HOME/.local/bin:$PATH"
+SKILL=/www/server/nvm/versions/node/v22.20.0/lib/node_modules/openclaw/skills/nano-banana-pro
+OUT=/tmp/img-$(date +%s).png
+
+uv run $SKILL/scripts/generate_image.py \
+  --prompt "deskripsi subjek, photorealistic, professional photography, natural lighting, 4K, lifelike" \
+  --filename "$OUT" --resolution 1K
+
+# Langsung kirim ke Telegram setelah generate:
+/root/.openclaw/workspace/scripts/telegram-send.sh "$OUT" "Caption gambar"
+```
+
+### Fallback: DALL-E 3 (hanya jika Gemini gagal)
 ```bash
 SKILL=/www/server/nvm/versions/node/v22.20.0/lib/node_modules/openclaw/skills/openai-image-gen
-python3 $SKILL/scripts/gen.py --prompt "deskripsi" --model dall-e-3 --count 1 --out-dir /tmp/imgout
+OUT_DIR=/tmp/imgout-$(date +%s)
+python3 $SKILL/scripts/gen.py --prompt "deskripsi" --model dall-e-3 --count 1 --out-dir $OUT_DIR
+# Jika DALL-E juga kena content filter → HANYA pakai Gemini, jangan retry DALL-E
 ```
