@@ -110,9 +110,16 @@ def api_config():
         for m in pdata.get("models", []):
             models_list.append(f"{pname}/{m['id']}")
 
+    # agents.list bisa array [{id, model, ...}] atau dict {agentId: {...}}
+    raw_list = cfg.get("agents", {}).get("list", [])
+    if isinstance(raw_list, list):
+        agents_map = {item["id"]: item for item in raw_list if "id" in item}
+    else:
+        agents_map = raw_list
+
     agents_cfg = []
     for a in AGENTS:
-        acfg = cfg.get("agents", {}).get("list", {}).get(a, {})
+        acfg = agents_map.get(a, {})
         model_cfg = acfg.get("model", {})
         agents_cfg.append({
             "id": a,
@@ -158,16 +165,32 @@ def api_agents():
     if not auth(request): return jsonify({"error":"unauthorized"}), 401
     data = request.json or {}
     cfg = read_json(OPENCLAW_CFG, {})
-    agents_list = cfg.setdefault("agents", {}).setdefault("list", {})
+    raw_list = cfg.get("agents", {}).get("list", [])
+
+    # Build map untuk update
+    if isinstance(raw_list, list):
+        agents_map = {item["id"]: item for item in raw_list if "id" in item}
+    else:
+        agents_map = raw_list
+
     for item in data.get("agents", []):
         aid = item.get("id")
         if not aid: continue
-        agents_list.setdefault(aid, {}).setdefault("model", {})
+        if aid not in agents_map:
+            agents_map[aid] = {"id": aid}
+        agents_map[aid].setdefault("model", {})
         if item.get("primary"):
-            agents_list[aid]["model"]["primary"] = item["primary"]
+            agents_map[aid]["model"]["primary"] = item["primary"]
         fallbacks = [f for f in item.get("fallbacks", []) if f]
         if fallbacks:
-            agents_list[aid]["model"]["fallbacks"] = fallbacks
+            agents_map[aid]["model"]["fallbacks"] = fallbacks
+
+    # Tulis kembali sesuai format asli
+    if isinstance(raw_list, list):
+        cfg["agents"]["list"] = list(agents_map.values())
+    else:
+        cfg["agents"]["list"] = agents_map
+
     write_json(OPENCLAW_CFG, cfg)
     return jsonify({"ok": True})
 
