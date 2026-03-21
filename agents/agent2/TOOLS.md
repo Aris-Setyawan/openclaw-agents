@@ -108,3 +108,31 @@ python3 $SKILL/scripts/gen.py --prompt "[deskripsi]" --model dall-e-3 --count 1 
 ls $OUT_DIR/*.png | head -1  # balas dengan path file
 ```
 > Jika DALL-E kena content filter → tetap pakai Gemini, jangan retry DALL-E
+
+## Video Generation ⭐ INI JUGA TUGAS AGENT 2
+
+Agent1 delegate video gen ke sini via bash. Kamu yang eksekusi.
+
+### Generate Video + Kirim Telegram — CUKUP SATU COMMAND:
+```bash
+/root/.openclaw/workspace/scripts/generate-video.sh "[deskripsi video]" "[caption]" [durasi 5-8] [model]
+```
+
+**Contoh:**
+```bash
+# Default (6 detik, Veo 3 Fast)
+/root/.openclaw/workspace/scripts/generate-video.sh "wanita tersenyum di taman, sinematik, 4K" "Video Wulan 🎬"
+
+# Kualitas tinggi 8 detik
+/root/.openclaw/workspace/scripts/generate-video.sh "prompt" "caption" 8 veo-3.0-generate-001
+```
+
+**Model Veo tersedia:**
+| Model | Keterangan |
+|-------|-----------|
+| `veo-3.0-fast-generate-001` | Default — cepat ~1-2 menit |
+| `veo-3.0-generate-001` | Kualitas lebih tinggi |
+| `veo-3.1-generate-preview` | Terbaru (preview) |
+
+> Script otomatis: ambil API key → submit ke Veo → poll sampai selesai → download → kirim Telegram
+> Video generation butuh waktu 1-3 menit — kasih tau user untuk tunggu
