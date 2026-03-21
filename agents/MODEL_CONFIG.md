@@ -1,14 +1,13 @@
 # Model Configuration per Agent
 
-> Last updated: 2026-03-20
-> Strategy: Google direct API via OpenAI-compat endpoint `/v1beta/openai` untuk agent1 (no markup), OpenRouter selalu last fallback
+> Last updated: 2026-03-21
+> Strategy: OpenRouter untuk semua Gemini — Google direct API tidak kompatibel karena OpenClaw mengirim parameter `store` yang tidak dikenal Google
 
-## Catatan Google Direct API
-Google Gemini via OpenAI-compatible endpoint (`/v1beta/openai/chat/completions`):
-- ✅ Mendukung `max_tokens` (OpenAI standard) — tidak perlu `max_completion_tokens`
-- ✅ `gemini-2.5-flash` bekerja via endpoint ini dengan `Authorization: Bearer API_KEY`
-- ❌ `gemini-3-flash-preview` tidak stabil / unavailable di direct API — pakai OpenRouter
-- **Provider config:** `baseUrl: https://generativelanguage.googleapis.com/v1beta/openai`
+## Kenapa Tidak Bisa Google Direct API
+OpenClaw mengirim parameter non-standard ke semua provider:
+- `store` — tidak dikenal Google → HTTP 400 `Unknown name "store": Cannot find field`
+- `max_completion_tokens` — format OpenAI baru, belum semua endpoint support
+- **Solusi:** Gunakan OpenRouter yang otomatis strip parameter tak dikenal sebelum forward ke Google
 
 ## Routing Logic
 - **Chat / Q&A / Analisis file** → agent1 (Gemini 2.5 Flash direct, no markup)
@@ -20,7 +19,7 @@ Google Gemini via OpenAI-compatible endpoint (`/v1beta/openai/chat/completions`)
 
 | Agent | Role | Primary | Fallback 1 | Fallback 2 | Fallback 3 |
 |-------|------|---------|------------|------------|------------|
-| agent1 | Orchestrator / Chat | `gemini/models/gemini-2.5-flash` | `deepseek/deepseek-chat` | `modelstudio/qwen3.5-plus` | `openrouter/google/gemini-2.5-flash` |
+| agent1 | Orchestrator / Chat | `openrouter/google/gemini-2.5-flash` | `deepseek/deepseek-chat` | `modelstudio/qwen3.5-plus` | `openrouter/google/gemini-2.0-flash` |
 | agent2 | Creative / Long-form | `deepseek/deepseek-chat` | `modelstudio/qwen3.5-plus` | `anthropic/claude-haiku-4-5` | `openrouter/google/gemini-2.5-flash` |
 | agent3 | Analytical / Reasoning | `deepseek/deepseek-reasoner` | `modelstudio/qwen3-max` | `deepseek/deepseek-chat` | `openrouter/google/gemini-2.5-flash` |
 | agent4 | Technical / Coding | `anthropic/claude-opus-4-6` | `anthropic/claude-haiku-4-5` | `modelstudio/qwen3-coder-next` | `deepseek/deepseek-chat` |
@@ -33,14 +32,14 @@ Google Gemini via OpenAI-compatible endpoint (`/v1beta/openai/chat/completions`)
 
 | Provider | Keunggulan | Kapan Dipakai |
 |----------|-----------|---------------|
-| Google Direct (`/v1beta/openai`) | No markup, supports max_tokens, gemini-2.5-flash OK | Primary agent1 |
+| OpenRouter Gemini | Strip param non-standard, handle API compat, reliable | Primary agent1 |
 | DeepSeek Chat | Output 2.8x lebih murah | Primary agent2, generate panjang |
 | ModelStudio (Qwen) | Murah, fallback menengah | Fallback agent lain |
 | Anthropic Claude | Kualitas tinggi | Agent4 primary, coding |
 | OpenRouter | Last resort semua agent | Fallback universal |
 
 ## API Keys (berbeda per server)
-- `GOOGLE_API_KEY` — Google direct via `/v1beta/openai` (primary agent1, no OpenRouter markup)
+- `GOOGLE_API_KEY` — Tidak digunakan (Google direct API tidak kompatibel dengan OpenClaw)
 - `DEEPSEEK_API_KEY` — DeepSeek direct
 - `DASHSCOPE_API_KEY` — ModelStudio/Qwen
 - `ANTHROPIC_API_KEY` — Claude
