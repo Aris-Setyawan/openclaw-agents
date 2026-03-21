@@ -6,13 +6,18 @@ Auth: X-Panel-Token header
 """
 import json, os, glob
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
 PANEL_TOKEN = os.environ.get("PANEL_TOKEN", "openclaw-panel-2026")
+PANEL_DIR   = os.path.dirname(os.path.abspath(__file__))
+
+@app.route("/")
+def index():
+    return send_from_directory(PANEL_DIR, "index.html")
 
 BASE         = "/root/.openclaw"
 OPENCLAW_CFG = f"{BASE}/openclaw.json"
