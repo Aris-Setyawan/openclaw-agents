@@ -7,3 +7,11 @@ health_state.json
 *.pid
 .env
 *.bak
+
+# Jangan pernah commit file sensitif
+.claude/settings.local.json
+**/auth-profiles.json
+openclaw.json
+**/.env.local
+secrets.*
+*.key
