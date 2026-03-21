@@ -247,6 +247,40 @@ chmod +x tui_watchdog.sh
 | `tui_watchdog.sh check` | Bersihkan stale locks + cek status |
 | `tui_watchdog.sh watch 30` | Background monitor TUI |
 | `scripts/check-all-balances.sh` | Cek saldo semua API provider |
+| `panel/reset-token.sh` | Reset panel token via CLI (lupa token) |
+
+---
+
+## Web Panel
+
+Management agent, API key, model routing, dan creative config via browser.
+
+```bash
+# Install & jalankan
+pip install flask flask-cors
+python3 panel/app.py
+
+# Atau via systemd
+systemctl start openclaw-panel
+```
+
+Akses: `http://[IP-SERVER]:7842`
+
+| Fitur | Keterangan |
+|-------|------------|
+| System Status | Monitor health semua agent real-time |
+| API Keys | Update key semua provider ke semua agent sekaligus |
+| Agent Models | Atur model primary + fallback per agent |
+| Creative Config | Setting image/audio/video untuk agent2 |
+| Settings | Ganti panel token |
+
+**Lupa token?**
+```bash
+panel/reset-token.sh               # reset ke default
+panel/reset-token.sh token-baru    # set token baru
+```
+
+Docs lengkap: [docs/PANEL-GUIDE.md](docs/PANEL-GUIDE.md) · [docs/PANEL-TOKEN-RESET.md](docs/PANEL-TOKEN-RESET.md)
 
 ---
 

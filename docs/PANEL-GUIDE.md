@@ -61,6 +61,8 @@ Saat pertama buka, browser akan minta **Panel Token** — masukkan token yang di
 
 > **Rekomendasi:** Ganti token default sebelum expose ke internet. Edit di `/etc/systemd/system/openclaw-panel.service`.
 
+> **Lupa token?** Gunakan reset script CLI: `./panel/reset-token.sh` — lihat [PANEL-TOKEN-RESET.md](PANEL-TOKEN-RESET.md) untuk panduan lengkap.
+
 ---
 
 ## Fitur Panel
