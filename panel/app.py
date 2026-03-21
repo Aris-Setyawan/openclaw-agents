@@ -131,15 +131,23 @@ def api_config():
         agents_map = raw_list
 
     agents_cfg = []
+    extra_models = set()
     for a in AGENTS:
         acfg = agents_map.get(a, {})
         model_cfg = acfg.get("model", {})
+        primary = model_cfg.get("primary", "")
+        fallbacks = model_cfg.get("fallbacks", [])
+        # Collect models not in providers list so dropdown can show them
+        for m in [primary] + fallbacks:
+            if m and m not in models_list:
+                extra_models.add(m)
         agents_cfg.append({
             "id": a,
             "role": AGENT_ROLES.get(a, ""),
-            "primary": model_cfg.get("primary", ""),
-            "fallbacks": model_cfg.get("fallbacks", []),
+            "primary": primary,
+            "fallbacks": fallbacks,
         })
+    models_list = sorted(extra_models) + models_list
 
     # API keys (masked)
     keys = {}
