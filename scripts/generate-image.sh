@@ -1,192 +1,283 @@
 #!/bin/bash
-# Generate gambar + kirim ke Telegram
-# Fallback chain: Gemini → kie.ai Flux Kontext → kie.ai Z-image → DALL-E
-# Usage: generate-image.sh "<prompt>" "[caption]" "[ref_image_path]"
+# Generate foto dengan model picker Telegram
+# Usage: generate-image.sh "<prompt>" "[caption]"
+#
+# Flow:
+#   1. Tanya user via Telegram: mau pakai model apa?
+#   2. Generate dengan model pilihan
+#   3. Kalau gagal → tanya konfirmasi: mau coba fallback?
+#   4. Kirim hasil ke Telegram
 
 PROMPT="$1"
-CAPTION="${2:-Gambar dari AI}"
-REF_IMAGE="$3"
+CAPTION="${2:-$1}"
+CHAT_ID="${3:-613802669}"
+AUTH_FILE="/root/.openclaw/agents/agent1/agent/auth-profiles.json"
+PICKER="/root/.openclaw/workspace/scripts/telegram-model-picker.sh"
+TG_SEND="/root/.openclaw/workspace/scripts/telegram-send.sh"
 
 if [ -z "$PROMPT" ]; then
-  echo "Usage: generate-image.sh <prompt> [caption] [ref_image_path]" >&2
+  echo "Usage: generate-image.sh <prompt> [caption]" >&2
   exit 1
 fi
 
-# ═══ MONITORING & RATE LIMIT ═══
-/root/.openclaw/workspace/scripts/monitor-api-usage.sh "generate-image" "image" "attempting" 2>/dev/null || true
-
-AUTH_FILE="/root/.openclaw/agents/agent1/agent/auth-profiles.json"
-GEMINI_API_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['google:default']['key'])" 2>/dev/null)
+GEMINI_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['google:default']['key'])" 2>/dev/null)
 KIE_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['kieai:default']['key'])" 2>/dev/null)
+OPENAI_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['openai:default']['key'])" 2>/dev/null)
 
-export GEMINI_API_KEY
-export PATH="/root/.local/bin:/www/server/nvm/versions/node/v22.20.0/bin:$PATH"
+# ── Fungsi generate per model ──────────────────────────────────────────────
 
-SKILL=/www/server/nvm/versions/node/v22.20.0/lib/node_modules/openclaw/skills/nano-banana-pro
-OUT=/tmp/img-$(date +%s).png
+gen_gemini() {
+  echo "[gen] Gemini Imagen..." >&2
+  local OUT=/tmp/img-gemini-$(date +%s).png
+  local RESP=$(curl -s -X POST \
+    "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${GEMINI_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "{\"instances\":[{\"prompt\":\"$PROMPT\"}],\"parameters\":{\"sampleCount\":1}}")
+  echo "$RESP" | python3 -c "
+import json,sys,base64
+d=json.load(sys.stdin)
+preds=d.get('predictions',[])
+if preds:
+    data=preds[0].get('bytesBase64Encoded','')
+    if data:
+        open('$OUT','wb').write(base64.b64decode(data))
+        print('ok')
+" 2>/dev/null
+  [ -f "$OUT" ] && [ -s "$OUT" ] && echo "$OUT"
+}
 
-# ── 1. GEMINI (primary) ──────────────────────────────────────────────────────
-if [ -n "$GEMINI_API_KEY" ]; then
-  if [ -n "$REF_IMAGE" ] && [ -f "$REF_IMAGE" ]; then
-    echo "[generate-image] Mode: image-to-image (ref: $REF_IMAGE)" >&2
-    FULL_PROMPT="Edit ONLY the facial expression to: ${PROMPT}. Keep everything else EXACTLY the same: same person, same adult age, same body position, same pose, same clothes, same background, same lighting. Do NOT change age, do NOT change position, do NOT change body type."
-    GEN_RESULT=$(uv run "$SKILL/scripts/generate_image.py" \
-      --prompt "$FULL_PROMPT" \
-      --input-image "$REF_IMAGE" \
-      --filename "$OUT" 2>&1)
-  else
-    echo "[generate-image] Mode: text-to-image (Gemini)" >&2
-    GEN_RESULT=$(uv run "$SKILL/scripts/generate_image.py" \
-      --prompt "$PROMPT" \
-      --filename "$OUT" \
-      --resolution 1K 2>&1)
-  fi
-  echo "$GEN_RESULT" >&2
-
-  if [ -f "$OUT" ] && [ -s "$OUT" ]; then
-    /root/.openclaw/workspace/scripts/telegram-send.sh "$OUT" "$CAPTION"
-    echo "IMAGE_SENT_OK"
-    exit 0
-  fi
-  echo "[gemini] Gagal atau file kosong" >&2
-else
-  echo "[gemini] API key tidak ditemukan, skip" >&2
-fi
-
-# ── FALLBACK WARNING ────────────────────────────────────────────────────────
-echo "" >&2
-echo "⚠️  WARNING: Gemini Imagen failed or unavailable" >&2
-echo "   Attempting fallback to kie.ai (may have different cost)" >&2
-echo "" >&2
-
-# Helper: poll kie.ai task sampai ada imageUrl (max 120s)
-kie_poll() {
-  local ENDPOINT="$1"
-  local TASK_ID="$2"
-  local WAITED=0
-  while [ $WAITED -lt 120 ]; do
+gen_kie_flux() {
+  local MODEL="${1:-flux-kontext-pro}"  # flux-kontext-pro atau flux-kontext-max
+  echo "[gen] kie.ai Flux Kontext ($MODEL)..." >&2
+  local OUT=/tmp/img-flux-$(date +%s).jpg
+  local RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/flux/kontext/generate" \
+    -H "Authorization: Bearer $KIE_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"prompt\":\"$PROMPT\",\"aspectRatio\":\"1:1\",\"model\":\"$MODEL\"}")
+  local TASK=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
+  [ -z "$TASK" ] && return 1
+  for i in $(seq 1 15); do
     sleep 8
-    WAITED=$((WAITED + 8))
-    STATUS=$(curl -s "${ENDPOINT}?taskId=${TASK_ID}" -H "Authorization: Bearer $KIE_KEY")
-    IMG_URL=$(echo "$STATUS" | python3 -c "
+    local POLL=$(curl -s "https://api.kie.ai/api/v1/flux/kontext/record-info?taskId=$TASK" -H "Authorization: Bearer $KIE_KEY")
+    local FLAG=$(echo "$POLL" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('successFlag',''))" 2>/dev/null)
+    local URL=$(echo "$POLL" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
-data = d.get('data',{}) or {}
-# Flux Kontext: response.resultImageUrl
-r = data.get('response') or {}
-url = r.get('resultImageUrl','') or r.get('imageUrl','')
-# fallback: imageList array
-if not url:
-    imgs = r.get('imageList',[]) or data.get('imageUrls',[])
-    url = imgs[0] if imgs else ''
-print(url)
+r=(d.get('data') or {}).get('response') or {}
+print(r.get('resultImageUrl','') or (r.get('imageList') or [''])[0])
 " 2>/dev/null)
-    echo "[kie.ai] ${WAITED}s — ${IMG_URL:+found}" >&2
-    if [ -n "$IMG_URL" ]; then
-      echo "$IMG_URL"
-      return 0
+    [ "$FLAG" = "3" ] && return 1
+    if [ -n "$URL" ]; then
+      curl -s -L "$URL" -o "$OUT"
+      [ -f "$OUT" ] && [ -s "$OUT" ] && echo "$OUT" && return 0
     fi
   done
   return 1
 }
 
-# ── 2. KIE.AI FLUX KONTEXT (fallback 1) ─────────────────────────────────────
-if [ -n "$KIE_KEY" ]; then
-  echo "[fallback-1] kie.ai Flux Kontext..." >&2
-  KIE_RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/flux/kontext/generate" \
+gen_kie_gpt4o() {
+  echo "[gen] kie.ai GPT-4o Image..." >&2
+  local OUT=/tmp/img-gpt4o-$(date +%s).png
+  local RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/gpt4o-image/generate" \
     -H "Authorization: Bearer $KIE_KEY" \
     -H "Content-Type: application/json" \
-    -d "{\"prompt\": \"$PROMPT\", \"aspectRatio\": \"1:1\", \"model\": \"flux-kontext-pro\"}")
-
-  KIE_TASK=$(echo "$KIE_RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
-  echo "[kie.ai flux] taskId: $KIE_TASK" >&2
-
-  if [ -n "$KIE_TASK" ]; then
-    KIE_OUT=/tmp/kieflux-$(date +%s).jpg
-    IMG_URL=$(kie_poll "https://api.kie.ai/api/v1/flux/kontext/record-info" "$KIE_TASK")
-    if [ -n "$IMG_URL" ]; then
-      curl -s -L "$IMG_URL" -o "$KIE_OUT"
-      if [ -f "$KIE_OUT" ] && [ -s "$KIE_OUT" ]; then
-        /root/.openclaw/workspace/scripts/telegram-send.sh "$KIE_OUT" "$CAPTION"
-        echo "IMAGE_SENT_OK"
-        exit 0
-      fi
-    fi
-  fi
-  echo "[kie.ai flux] Gagal" >&2
-
-  # ── 3. KIE.AI GPT-4O IMAGE (fallback 2) ─────────────────────────────────
-  echo "[fallback-2] kie.ai GPT-4o Image..." >&2
-  KIE_RESP2=$(curl -s -X POST "https://api.kie.ai/api/v1/gpt4o-image/generate" \
-    -H "Authorization: Bearer $KIE_KEY" \
-    -H "Content-Type: application/json" \
-    -d "{\"prompt\": \"$PROMPT\", \"size\": \"1:1\"}")
-
-  KIE_TASK2=$(echo "$KIE_RESP2" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
-  echo "[kie.ai gpt4o] taskId: $KIE_TASK2" >&2
-
-  if [ -n "$KIE_TASK2" ]; then
-    KIE_OUT2=/tmp/kiegpt4o-$(date +%s).png
-    # Poll dengan endpoint spesifik gpt4o-image
-    for j in $(seq 1 15); do
-      sleep 8
-      POLL2=$(curl -s "https://api.kie.ai/api/v1/gpt4o-image/record-info?taskId=$KIE_TASK2" \
-        -H "Authorization: Bearer $KIE_KEY")
-      IMG_URL2=$(echo "$POLL2" | python3 -c "
+    -d "{\"prompt\":\"$PROMPT\",\"size\":\"1:1\"}")
+  local TASK=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
+  [ -z "$TASK" ] && return 1
+  for i in $(seq 1 15); do
+    sleep 8
+    local POLL=$(curl -s "https://api.kie.ai/api/v1/gpt4o-image/record-info?taskId=$TASK" -H "Authorization: Bearer $KIE_KEY")
+    local URLS=$(echo "$POLL" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
-r = (d.get('data') or {}).get('response') or {}
-urls = r.get('resultUrls',[])
+r=(d.get('data') or {}).get('response') or {}
+urls=r.get('resultUrls',[])
 print(urls[0] if urls else '')
 " 2>/dev/null)
-      echo "[kie.ai gpt4o] ${j} — ${IMG_URL2:+found}" >&2
-      if [ -n "$IMG_URL2" ]; then
-        curl -s -L "$IMG_URL2" -o "$KIE_OUT2"
-        if [ -f "$KIE_OUT2" ] && [ -s "$KIE_OUT2" ]; then
-          /root/.openclaw/workspace/scripts/telegram-send.sh "$KIE_OUT2" "$CAPTION"
-          echo "IMAGE_SENT_OK"
-          exit 0
-        fi
-      fi
-    done
-  fi
-  echo "[kie.ai gpt4o] Gagal" >&2
-fi
+    if [ -n "$URLS" ]; then
+      curl -s -L "$URLS" -o "$OUT"
+      [ -f "$OUT" ] && [ -s "$OUT" ] && echo "$OUT" && return 0
+    fi
+  done
+  return 1
+}
 
-# ── 4. GPT-IMAGE-1.5 quality=medium (last resort) ───────────────────────────
-echo "[fallback-3] gpt-image-1.5 (medium)..." >&2
-OPENAI_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['openai:default']['key'])" 2>/dev/null)
+gen_kie_imagen4() {
+  local MODEL="${1:-google/imagen4}"
+  echo "[gen] kie.ai $MODEL..." >&2
+  local OUT=/tmp/img-imagen4-$(date +%s).png
+  local RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/jobs/createTask" \
+    -H "Authorization: Bearer $KIE_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"$MODEL\",\"prompt\":\"$PROMPT\",\"output_format\":\"png\",\"image_size\":\"1:1\"}")
+  local TASK=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
+  [ -z "$TASK" ] && return 1
+  for i in $(seq 1 18); do
+    sleep 8
+    local POLL=$(curl -s "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=$TASK" -H "Authorization: Bearer $KIE_KEY")
+    local STATUS=$(echo "$POLL" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('data') or {}).get('status',''))" 2>/dev/null)
+    local URL=$(echo "$POLL" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+r=(d.get('data') or {}).get('response') or {}
+imgs=r.get('images',[]) or r.get('resultUrls',[])
+print(imgs[0].get('url','') if imgs and isinstance(imgs[0],dict) else (imgs[0] if imgs else ''))
+" 2>/dev/null)
+    [ "$STATUS" = "fail" ] && return 1
+    if [ -n "$URL" ]; then
+      curl -s -L "$URL" -o "$OUT"
+      [ -f "$OUT" ] && [ -s "$OUT" ] && echo "$OUT" && return 0
+    fi
+  done
+  return 1
+}
 
-if [ -n "$OPENAI_KEY" ]; then
-  GPT_RESP=$(curl -s -X POST "https://api.openai.com/v1/images/generations" \
+gen_kie_seedream4() {
+  echo "[gen] kie.ai Seedream 4.0..." >&2
+  local OUT=/tmp/img-seedream-$(date +%s).png
+  local RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/jobs/createTask" \
+    -H "Authorization: Bearer $KIE_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"bytedance/seedream-v4-text-to-image\",\"prompt\":\"$PROMPT\",\"image_size\":\"square_hd\"}")
+  local TASK=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
+  [ -z "$TASK" ] && return 1
+  for i in $(seq 1 18); do
+    sleep 8
+    local POLL=$(curl -s "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=$TASK" -H "Authorization: Bearer $KIE_KEY")
+    local STATUS=$(echo "$POLL" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('data') or {}).get('status',''))" 2>/dev/null)
+    local URL=$(echo "$POLL" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+r=(d.get('data') or {}).get('response') or {}
+imgs=r.get('images',[]) or r.get('resultUrls',[])
+print(imgs[0].get('url','') if imgs and isinstance(imgs[0],dict) else (imgs[0] if imgs else ''))
+" 2>/dev/null)
+    [ "$STATUS" = "fail" ] && return 1
+    if [ -n "$URL" ]; then
+      curl -s -L "$URL" -o "$OUT"
+      [ -f "$OUT" ] && [ -s "$OUT" ] && echo "$OUT" && return 0
+    fi
+  done
+  return 1
+}
+
+gen_gpt15() {
+  echo "[gen] GPT-Image-1.5 (OpenAI)..." >&2
+  local OUT=/tmp/img-gpt15-$(date +%s).png
+  local RESP=$(curl -s -X POST "https://api.openai.com/v1/images/generations" \
     -H "Authorization: Bearer $OPENAI_KEY" \
     -H "Content-Type: application/json" \
     -d "{\"model\":\"gpt-image-1.5\",\"prompt\":\"$PROMPT\",\"size\":\"1024x1024\",\"quality\":\"medium\",\"n\":1}")
-
-  GPT_B64=$(echo "$GPT_RESP" | python3 -c "
-import json,sys
+  echo "$RESP" | python3 -c "
+import json,sys,base64
 d=json.load(sys.stdin)
-items = d.get('data',[])
+items=d.get('data',[])
 if items:
-    print(items[0].get('b64_json','') or items[0].get('url',''))
-" 2>/dev/null)
+    b64=items[0].get('b64_json','')
+    url=items[0].get('url','')
+    if b64:
+        open('$OUT','wb').write(base64.b64decode(b64))
+        print('ok')
+    elif url:
+        print(url)
+" 2>/dev/null
+  [ -f "$OUT" ] && [ -s "$OUT" ] && echo "$OUT"
+}
 
-  if [ -n "$GPT_B64" ]; then
-    GPT_OUT=/tmp/gptimg-$(date +%s).png
-    # Cek apakah URL atau base64
-    if echo "$GPT_B64" | grep -q "^http"; then
-      curl -s -L "$GPT_B64" -o "$GPT_OUT"
-    else
-      echo "$GPT_B64" | python3 -c "import base64,sys; open('$GPT_OUT','wb').write(base64.b64decode(sys.stdin.read().strip()))"
-    fi
-    if [ -f "$GPT_OUT" ] && [ -s "$GPT_OUT" ]; then
-      /root/.openclaw/workspace/scripts/telegram-send.sh "$GPT_OUT" "$CAPTION"
-      echo "IMAGE_SENT_OK"
-      exit 0
-    fi
+# ── Map model code → fungsi generate ──────────────────────────────────────
+run_model() {
+  local CODE="$1"
+  case "$CODE" in
+    gemini)    gen_gemini ;;
+    flux_pro)  gen_kie_flux "flux-kontext-pro" ;;
+    flux_max)  gen_kie_flux "flux-kontext-max" ;;
+    gpt4o)     gen_kie_gpt4o ;;
+    imagen4)   gen_kie_imagen4 "google/imagen4" ;;
+    imagen4u)  gen_kie_imagen4 "google/imagen4-ultra" ;;
+    seedream4) gen_kie_seedream4 ;;
+    gpt15)     gen_gpt15 ;;
+    *)         gen_gemini ;;
+  esac
+}
+
+# Label model untuk pesan konfirmasi
+model_label() {
+  case "$1" in
+    gemini)    echo "Gemini Imagen (Google)" ;;
+    flux_pro)  echo "Flux Kontext Pro (kie.ai)" ;;
+    flux_max)  echo "Flux Kontext Max (kie.ai)" ;;
+    gpt4o)     echo "GPT-4o Image (kie.ai)" ;;
+    imagen4)   echo "Google Imagen 4 (kie.ai)" ;;
+    imagen4u)  echo "Google Imagen 4 Ultra (kie.ai)" ;;
+    seedream4) echo "Seedream 4.0 (kie.ai)" ;;
+    gpt15)     echo "GPT-Image-1.5 (OpenAI)" ;;
+    *)         echo "$1" ;;
+  esac
+}
+
+# Fallback chain per model
+fallback_of() {
+  case "$1" in
+    gemini)    echo "flux_pro" ;;
+    flux_pro)  echo "flux_max" ;;
+    flux_max)  echo "gpt4o" ;;
+    gpt4o)     echo "imagen4" ;;
+    imagen4)   echo "seedream4" ;;
+    imagen4u)  echo "seedream4" ;;
+    seedream4) echo "gpt15" ;;
+    gpt15)     echo "" ;;
+    *)         echo "gpt15" ;;
+  esac
+}
+
+# ── MAIN ───────────────────────────────────────────────────────────────────
+
+# 1. Tanya model via Telegram
+echo "[picker] Menunggu pilihan model dari Telegram..." >&2
+CHOSEN_MODEL=$(bash "$PICKER" image "$PROMPT" "$CHAT_ID")
+echo "[picker] Model dipilih: $CHOSEN_MODEL" >&2
+
+# 2. Generate dengan model pilihan + konfirmasi fallback
+CURRENT_MODEL="$CHOSEN_MODEL"
+while true; do
+  LABEL=$(model_label "$CURRENT_MODEL")
+  echo "[generate] Mencoba: $LABEL" >&2
+
+  RESULT=$(run_model "$CURRENT_MODEL")
+
+  if [ -n "$RESULT" ] && [ -f "$RESULT" ] && [ -s "$RESULT" ]; then
+    # Sukses!
+    $TG_SEND "$RESULT" "🖼 $CAPTION
+_Model: $LABEL_" "$CHAT_ID"
+    echo "IMAGE_SENT_OK"
+    exit 0
   fi
-  echo "[gpt-image-1.5] Gagal: $(echo "$GPT_RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('error',{}).get('message','?'))" 2>/dev/null)" >&2
-fi
 
-echo "ERROR: Semua metode image gen gagal (Gemini → kie.ai Flux → kie.ai Z-image → gpt-image-1.5)" >&2
-exit 1
+  # Gagal — cari fallback
+  NEXT=$(fallback_of "$CURRENT_MODEL")
+  if [ -z "$NEXT" ]; then
+    # Tidak ada fallback lagi
+    BOT_TOKEN=$(python3 -c "import json; d=json.load(open('/root/.openclaw/openclaw.json')); print(d['channels']['telegram']['botToken'])" 2>/dev/null)
+    curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+      -H "Content-Type: application/json" \
+      -d "{\"chat_id\":\"$CHAT_ID\",\"text\":\"❌ Semua model gagal. Generate foto dibatalkan.\",\"parse_mode\":\"Markdown\"}" > /dev/null
+    echo "ERROR: Semua model gagal" >&2
+    exit 1
+  fi
+
+  NEXT_LABEL=$(model_label "$NEXT")
+  CONFIRM=$(bash "$PICKER" confirm "Model *$(model_label $CURRENT_MODEL)* gagal.
+
+Mau coba fallback ke *$NEXT_LABEL*?" "$CHAT_ID")
+
+  if [ "$CONFIRM" != "yes" ]; then
+    BOT_TOKEN=$(python3 -c "import json; d=json.load(open('/root/.openclaw/openclaw.json')); print(d['channels']['telegram']['botToken'])" 2>/dev/null)
+    curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+      -H "Content-Type: application/json" \
+      -d "{\"chat_id\":\"$CHAT_ID\",\"text\":\"❌ Generate foto dibatalkan.\",\"parse_mode\":\"Markdown\"}" > /dev/null
+    echo "Dibatalkan user" >&2
+    exit 1
+  fi
+
+  CURRENT_MODEL="$NEXT"
+done

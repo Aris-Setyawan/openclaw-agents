@@ -1,155 +1,273 @@
 #!/bin/bash
-# Generate video via Google Veo + kirim ke Telegram
-# Fallback: Google Veo → kie.ai Veo3 Fast
-# Usage: generate-video.sh "<prompt>" "[caption]" "[duration: 5-8]" "[model]"
+# Generate video dengan model picker Telegram
+# Usage: generate-video.sh "<prompt>" "[caption]"
+#
+# Flow:
+#   1. Tanya user via Telegram: mau pakai model apa?
+#   2. Generate dengan model pilihan
+#   3. Kalau gagal → tanya konfirmasi: mau coba fallback?
 
 PROMPT="$1"
-CAPTION="${2:-Video dari Veo}"
-DURATION="${3:-6}"
-MODEL="${4:-veo-3.0-fast-generate-001}"
+CAPTION="${2:-Video AI}"
+CHAT_ID="${3:-613802669}"
+AUTH_FILE="/root/.openclaw/agents/agent1/agent/auth-profiles.json"
+PICKER="/root/.openclaw/workspace/scripts/telegram-model-picker.sh"
+TG_SEND="/root/.openclaw/workspace/scripts/telegram-send.sh"
 
 if [ -z "$PROMPT" ]; then
-  echo "Usage: generate-video.sh <prompt> [caption] [duration 5-8] [model]" >&2
+  echo "Usage: generate-video.sh <prompt> [caption]" >&2
   exit 1
 fi
 
-if [ "$DURATION" -lt 5 ] || [ "$DURATION" -gt 8 ]; then
-  DURATION=6
-fi
-
-AUTH_FILE="/root/.openclaw/agents/agent1/agent/auth-profiles.json"
-GEMINI_API_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['google:default']['key'])" 2>/dev/null)
 KIE_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['kieai:default']['key'])" 2>/dev/null)
+GEMINI_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['google:default']['key'])" 2>/dev/null)
+OUT=/tmp/video-$(date +%s).mp4
 
-# ── FALLBACK: KIE.AI VEO 3 ───────────────────────────────────────────────────
-kie_video_fallback() {
-  if [ -z "$KIE_KEY" ]; then
-    echo "[kie.ai video] API key tidak ditemukan" >&2
-    return 1
-  fi
-
-  echo "[fallback] Google Veo gagal, coba kie.ai Veo3 Fast..." >&2
-  KIE_RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/veo/generate" \
-    -H "Authorization: Bearer $KIE_KEY" \
-    -H "Content-Type: application/json" \
-    -d "{\"prompt\": \"$PROMPT\", \"model\": \"veo3_fast\", \"aspect_ratio\": \"16:9\"}")
-
-  KIE_TASK=$(echo "$KIE_RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
-  echo "[kie.ai veo] taskId: $KIE_TASK" >&2
-
-  if [ -z "$KIE_TASK" ]; then
-    echo "[kie.ai veo] Gagal submit: $KIE_RESP" >&2
-    return 1
-  fi
-
-  # Poll max 5 menit
-  KIE_WAITED=0
-  KIE_VID_OUT=/tmp/kievid-$(date +%s).mp4
-  while [ $KIE_WAITED -lt 300 ]; do
-    sleep 15
-    KIE_WAITED=$((KIE_WAITED + 15))
-    STATUS=$(curl -s "https://api.kie.ai/api/v1/veo/record-info?taskId=$KIE_TASK" \
-      -H "Authorization: Bearer $KIE_KEY")
-    VID_URL=$(echo "$STATUS" | python3 -c "
+# ── Fungsi polling umum (kie.ai /jobs/recordInfo) ─────────────────────────
+poll_jobs() {
+  local TASK="$1"
+  local MAX="${2:-300}"
+  local WAITED=0
+  while [ $WAITED -lt $MAX ]; do
+    sleep 12
+    WAITED=$((WAITED + 12))
+    local POLL=$(curl -s "https://api.kie.ai/api/v1/jobs/recordInfo?taskId=$TASK" -H "Authorization: Bearer $KIE_KEY")
+    local STATUS=$(echo "$POLL" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('data') or {}).get('status',''))" 2>/dev/null)
+    local URL=$(echo "$POLL" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
-print(d.get('data',{}).get('videoUrl',''))
+r=(d.get('data') or {}).get('response') or {}
+print(r.get('videoUrl','') or r.get('video_url','') or (r.get('videos') or [{}])[0].get('url',''))
 " 2>/dev/null)
-    echo "[kie.ai veo] ${KIE_WAITED}s — ${VID_URL:+found}" >&2
-    if [ -n "$VID_URL" ]; then
-      curl -s -L "$VID_URL" -o "$KIE_VID_OUT"
-      if [ -f "$KIE_VID_OUT" ] && [ -s "$KIE_VID_OUT" ]; then
-        /root/.openclaw/workspace/scripts/telegram-send.sh "$KIE_VID_OUT" "$CAPTION"
-        echo "VIDEO_SENT_OK"
-        return 0
-      fi
-    fi
+    echo "[poll] ${WAITED}s status=$STATUS" >&2
+    [ "$STATUS" = "fail" ] && return 1
+    if [ -n "$URL" ]; then echo "$URL"; return 0; fi
   done
-  echo "[kie.ai veo] Timeout" >&2
   return 1
 }
 
-# ── 1. GOOGLE VEO (primary) ──────────────────────────────────────────────────
-if [ -z "$GEMINI_API_KEY" ]; then
-  echo "[veo] Tidak ada GEMINI_API_KEY, langsung ke fallback" >&2
-  kie_video_fallback || { echo "ERROR: Semua video gen gagal" >&2; exit 1; }
-  exit 0
-fi
+# ── Fungsi generate per model ──────────────────────────────────────────────
 
-BASE_URL="https://generativelanguage.googleapis.com/v1beta"
-OUT=/tmp/video-$(date +%s).mp4
+gen_veo3f() {
+  echo "[gen] kie.ai Veo3 Fast..." >&2
+  local RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/veo/generate" \
+    -H "Authorization: Bearer $KIE_KEY" -H "Content-Type: application/json" \
+    -d "{\"prompt\":\"$PROMPT\",\"model\":\"veo3_fast\",\"aspect_ratio\":\"16:9\"}")
+  local TASK=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
+  [ -z "$TASK" ] && return 1
+  local WAITED=0
+  while [ $WAITED -lt 300 ]; do
+    sleep 15; WAITED=$((WAITED+15))
+    local POLL=$(curl -s "https://api.kie.ai/api/v1/veo/record-info?taskId=$TASK" -H "Authorization: Bearer $KIE_KEY")
+    local URL=$(echo "$POLL" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('data') or {}).get('videoUrl',''))" 2>/dev/null)
+    echo "[veo3f] ${WAITED}s" >&2
+    if [ -n "$URL" ]; then curl -s -L "$URL" -o "$OUT"; [ -s "$OUT" ] && echo "$OUT" && return 0; fi
+  done
+  return 1
+}
 
-echo "[veo] Model: $MODEL | Durasi: ${DURATION}s" >&2
-echo "[veo] Prompt: $PROMPT" >&2
+gen_veo3q() {
+  echo "[gen] kie.ai Veo3 Quality..." >&2
+  local RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/veo/generate" \
+    -H "Authorization: Bearer $KIE_KEY" -H "Content-Type: application/json" \
+    -d "{\"prompt\":\"$PROMPT\",\"model\":\"veo3\",\"aspect_ratio\":\"16:9\"}")
+  local TASK=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
+  [ -z "$TASK" ] && return 1
+  local WAITED=0
+  while [ $WAITED -lt 360 ]; do
+    sleep 15; WAITED=$((WAITED+15))
+    local POLL=$(curl -s "https://api.kie.ai/api/v1/veo/record-info?taskId=$TASK" -H "Authorization: Bearer $KIE_KEY")
+    local URL=$(echo "$POLL" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('data') or {}).get('videoUrl',''))" 2>/dev/null)
+    echo "[veo3q] ${WAITED}s" >&2
+    if [ -n "$URL" ]; then curl -s -L "$URL" -o "$OUT"; [ -s "$OUT" ] && echo "$OUT" && return 0; fi
+  done
+  return 1
+}
 
-# Submit
-RESPONSE=$(curl -s -X POST \
-  "${BASE_URL}/models/${MODEL}:predictLongRunning?key=${GEMINI_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"instances\": [{\"prompt\": \"$PROMPT\"}],
-    \"parameters\": {\"aspectRatio\": \"16:9\", \"durationSeconds\": $DURATION}
-  }")
-
-OPERATION=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('name',''))" 2>/dev/null)
-
-if [ -z "$OPERATION" ]; then
-  echo "[veo] ERROR: Gagal submit — $RESPONSE" >&2
-  kie_video_fallback || { echo "ERROR: Semua video gen gagal" >&2; exit 1; }
-  exit 0
-fi
-
-echo "[veo] Operation: $OPERATION" >&2
-echo "[veo] Generating video, tunggu sebentar..." >&2
-
-# Poll
-MAX_WAIT=300
-WAITED=0
-VEO_FAILED=false
-
-while [ $WAITED -lt $MAX_WAIT ]; do
-  sleep 10
-  WAITED=$((WAITED + 10))
-
-  STATUS=$(curl -s "${BASE_URL}/${OPERATION}?key=${GEMINI_API_KEY}")
-  DONE=$(echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('done','false'))" 2>/dev/null)
-  echo "[veo] ${WAITED}s — done=$DONE" >&2
-
-  if [ "$DONE" = "True" ] || [ "$DONE" = "true" ]; then
-    VIDEO_URI=$(echo "$STATUS" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-samples = d.get('response',{}).get('generateVideoResponse',{}).get('generatedSamples',[])
-if samples:
-    print(samples[0].get('video',{}).get('uri',''))
+gen_runway() {
+  echo "[gen] kie.ai Runway Gen4 Turbo..." >&2
+  local RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/runway/generate" \
+    -H "Authorization: Bearer $KIE_KEY" -H "Content-Type: application/json" \
+    -d "{\"prompt\":\"$PROMPT\",\"duration\":5,\"quality\":\"720p\",\"aspectRatio\":\"16:9\",\"callBackUrl\":\"https://example.com/cb\"}")
+  local TASK=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
+  [ -z "$TASK" ] && return 1
+  local WAITED=0
+  while [ $WAITED -lt 300 ]; do
+    sleep 12; WAITED=$((WAITED+12))
+    local POLL=$(curl -s "https://api.kie.ai/api/v1/runway/record-detail?taskId=$TASK" -H "Authorization: Bearer $KIE_KEY")
+    local URL=$(echo "$POLL" | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+r=(d.get('data') or {}).get('response') or {}
+print(r.get('videoUrl','') or r.get('video_url',''))
 " 2>/dev/null)
+    echo "[runway] ${WAITED}s" >&2
+    if [ -n "$URL" ]; then curl -s -L "$URL" -o "$OUT"; [ -s "$OUT" ] && echo "$OUT" && return 0; fi
+  done
+  return 1
+}
 
-    if [ -n "$VIDEO_URI" ]; then
-      echo "[veo] Downloading video..." >&2
-      curl -s -L "${VIDEO_URI}&key=${GEMINI_API_KEY}" -o "$OUT"
-    else
-      echo "[veo] ERROR: Tidak ada video URI" >&2
-      VEO_FAILED=true
-      break
-    fi
+gen_kling3() {
+  echo "[gen] kie.ai Kling 3.0..." >&2
+  local RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/jobs/createTask" \
+    -H "Authorization: Bearer $KIE_KEY" -H "Content-Type: application/json" \
+    -d "{\"model\":\"kling-3.0/video\",\"prompt\":\"$PROMPT\",\"duration\":5,\"aspect_ratio\":\"16:9\",\"mode\":\"std\"}")
+  local TASK=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
+  [ -z "$TASK" ] && return 1
+  local URL=$(poll_jobs "$TASK" 300)
+  [ -z "$URL" ] && return 1
+  curl -s -L "$URL" -o "$OUT"; [ -s "$OUT" ] && echo "$OUT"
+}
 
-    if [ -f "$OUT" ] && [ -s "$OUT" ]; then
-      /root/.openclaw/workspace/scripts/telegram-send.sh "$OUT" "$CAPTION"
-      echo "VIDEO_SENT_OK"
-      exit 0
-    else
-      VEO_FAILED=true
-      break
+gen_sora2() {
+  echo "[gen] kie.ai Sora 2..." >&2
+  local RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/jobs/createTask" \
+    -H "Authorization: Bearer $KIE_KEY" -H "Content-Type: application/json" \
+    -d "{\"model\":\"sora-2-text-to-video\",\"prompt\":\"$PROMPT\",\"aspect_ratio\":\"landscape\",\"n_frames\":10}")
+  local TASK=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
+  [ -z "$TASK" ] && return 1
+  local URL=$(poll_jobs "$TASK" 360)
+  [ -z "$URL" ] && return 1
+  curl -s -L "$URL" -o "$OUT"; [ -s "$OUT" ] && echo "$OUT"
+}
+
+gen_hailuo() {
+  echo "[gen] kie.ai Hailuo Standard..." >&2
+  local RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/jobs/createTask" \
+    -H "Authorization: Bearer $KIE_KEY" -H "Content-Type: application/json" \
+    -d "{\"model\":\"hailuo/02-text-to-video-standard\",\"prompt\":\"$PROMPT\",\"duration\":6}")
+  local TASK=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
+  [ -z "$TASK" ] && return 1
+  local URL=$(poll_jobs "$TASK" 300)
+  [ -z "$URL" ] && return 1
+  curl -s -L "$URL" -o "$OUT"; [ -s "$OUT" ] && echo "$OUT"
+}
+
+gen_wan() {
+  echo "[gen] kie.ai Wan (Alibaba)..." >&2
+  local RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/jobs/createTask" \
+    -H "Authorization: Bearer $KIE_KEY" -H "Content-Type: application/json" \
+    -d "{\"model\":\"wan/text-to-video\",\"prompt\":\"$PROMPT\",\"aspect_ratio\":\"16:9\",\"duration\":5}")
+  local TASK=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
+  [ -z "$TASK" ] && return 1
+  local URL=$(poll_jobs "$TASK" 300)
+  [ -z "$URL" ] && return 1
+  curl -s -L "$URL" -o "$OUT"; [ -s "$OUT" ] && echo "$OUT"
+}
+
+gen_gveo() {
+  echo "[gen] Google Veo (direct)..." >&2
+  local BASE="https://generativelanguage.googleapis.com/v1beta"
+  local MODEL="veo-3.0-fast-generate-001"
+  local RESP=$(curl -s -X POST "${BASE}/models/${MODEL}:predictLongRunning?key=${GEMINI_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "{\"instances\":[{\"prompt\":\"$PROMPT\"}],\"parameters\":{\"aspectRatio\":\"16:9\",\"durationSeconds\":6}}")
+  local OP=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('name',''))" 2>/dev/null)
+  [ -z "$OP" ] && return 1
+  local WAITED=0
+  while [ $WAITED -lt 300 ]; do
+    sleep 12; WAITED=$((WAITED+12))
+    local STATUS=$(curl -s "${BASE}/${OP}?key=${GEMINI_KEY}")
+    local DONE=$(echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('done','false'))" 2>/dev/null)
+    echo "[gveo] ${WAITED}s done=$DONE" >&2
+    if [ "$DONE" = "True" ] || [ "$DONE" = "true" ]; then
+      local URL=$(echo "$STATUS" | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+s=d.get('response',{}).get('generateVideoResponse',{}).get('generatedSamples',[])
+print(s[0].get('video',{}).get('uri','') if s else '')
+" 2>/dev/null)
+      [ -z "$URL" ] && return 1
+      curl -s -L "${URL}&key=${GEMINI_KEY}" -o "$OUT"
+      [ -s "$OUT" ] && echo "$OUT" && return 0
     fi
+  done
+  return 1
+}
+
+# ── Map model code → fungsi ────────────────────────────────────────────────
+run_model() {
+  case "$1" in
+    veo3f)  gen_veo3f ;;
+    veo3q)  gen_veo3q ;;
+    runway) gen_runway ;;
+    kling3) gen_kling3 ;;
+    sora2)  gen_sora2 ;;
+    hailuo) gen_hailuo ;;
+    wan)    gen_wan ;;
+    gveo)   gen_gveo ;;
+    *)      gen_veo3f ;;
+  esac
+}
+
+model_label() {
+  case "$1" in
+    veo3f)  echo "Veo3 Fast (kie.ai)" ;;
+    veo3q)  echo "Veo3 Quality (kie.ai)" ;;
+    runway) echo "Runway Gen4 Turbo (kie.ai)" ;;
+    kling3) echo "Kling 3.0 (kie.ai)" ;;
+    sora2)  echo "Sora 2 (kie.ai)" ;;
+    hailuo) echo "Hailuo Standard (kie.ai)" ;;
+    wan)    echo "Wan/Alibaba (kie.ai)" ;;
+    gveo)   echo "Google Veo (direct)" ;;
+    *)      echo "$1" ;;
+  esac
+}
+
+fallback_of() {
+  case "$1" in
+    veo3f)  echo "veo3q" ;;
+    veo3q)  echo "runway" ;;
+    runway) echo "kling3" ;;
+    kling3) echo "sora2" ;;
+    sora2)  echo "hailuo" ;;
+    hailuo) echo "wan" ;;
+    wan)    echo "gveo" ;;
+    gveo)   echo "" ;;
+    *)      echo "gveo" ;;
+  esac
+}
+
+# ── MAIN ───────────────────────────────────────────────────────────────────
+echo "[picker] Menunggu pilihan model dari Telegram..." >&2
+CHOSEN_MODEL=$(bash "$PICKER" video "$PROMPT" "$CHAT_ID")
+echo "[picker] Model dipilih: $CHOSEN_MODEL" >&2
+
+CURRENT_MODEL="$CHOSEN_MODEL"
+while true; do
+  LABEL=$(model_label "$CURRENT_MODEL")
+  echo "[generate] Mencoba: $LABEL" >&2
+
+  RESULT=$(run_model "$CURRENT_MODEL")
+
+  if [ -n "$RESULT" ] && [ -f "$RESULT" ] && [ -s "$RESULT" ]; then
+    $TG_SEND "$RESULT" "🎬 $CAPTION
+_Model: $LABEL_" "$CHAT_ID"
+    echo "VIDEO_SENT_OK"
+    exit 0
   fi
 
-  ERROR=$(echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('error',{}).get('message',''))" 2>/dev/null)
-  if [ -n "$ERROR" ]; then
-    echo "[veo] ERROR: $ERROR" >&2
-    VEO_FAILED=true
-    break
+  NEXT=$(fallback_of "$CURRENT_MODEL")
+  if [ -z "$NEXT" ]; then
+    BOT_TOKEN=$(python3 -c "import json; d=json.load(open('/root/.openclaw/openclaw.json')); print(d['channels']['telegram']['botToken'])" 2>/dev/null)
+    curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+      -H "Content-Type: application/json" \
+      -d "{\"chat_id\":\"$CHAT_ID\",\"text\":\"❌ Semua model gagal. Generate video dibatalkan.\"}" > /dev/null
+    echo "ERROR: Semua model gagal" >&2
+    exit 1
   fi
+
+  NEXT_LABEL=$(model_label "$NEXT")
+  CONFIRM=$(bash "$PICKER" confirm "Model *$(model_label $CURRENT_MODEL)* gagal.
+
+Mau coba fallback ke *$NEXT_LABEL*?" "$CHAT_ID")
+
+  if [ "$CONFIRM" != "yes" ]; then
+    BOT_TOKEN=$(python3 -c "import json; d=json.load(open('/root/.openclaw/openclaw.json')); print(d['channels']['telegram']['botToken'])" 2>/dev/null)
+    curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+      -H "Content-Type: application/json" \
+      -d "{\"chat_id\":\"$CHAT_ID\",\"text\":\"❌ Generate video dibatalkan.\"}" > /dev/null
+    echo "Dibatalkan user" >&2
+    exit 1
+  fi
+
+  CURRENT_MODEL="$NEXT"
 done
-
-# Timeout atau error → coba kie.ai
-kie_video_fallback || { echo "ERROR: Semua video gen gagal (Google Veo → kie.ai Veo3)" >&2; exit 1; }
