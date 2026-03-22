@@ -655,7 +655,11 @@ body {
 
 <script>
 const API = '';  // same origin
-let TOKEN = prompt('Panel Token:', '') || 'openclaw-panel-2026';
+let TOKEN = localStorage.getItem('openclaw_panel_token') || '';
+if (!TOKEN) {
+  TOKEN = prompt('Panel Token:', '') || 'openclaw-panel-2026';
+  localStorage.setItem('openclaw_panel_token', TOKEN);
+}
 
 const PROVIDERS = [
   { id:'google',      label:'Gemini API Key',      placeholder:'AIzaSy...' },
@@ -927,6 +931,7 @@ async function changeToken() {
     const d = await r.json();
     if (d.ok) {
       TOKEN = newTok;
+      localStorage.setItem('openclaw_panel_token', TOKEN);
       document.getElementById('new-token-input').value = '';
       renderSettings();
       showToast('✓ Token berhasil diganti', 'ok');
