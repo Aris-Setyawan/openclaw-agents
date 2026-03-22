@@ -1,0 +1,5 @@
+{
+  "image": {"provider": "kieai", "style": "photorealistic"},
+  "audio": {"provider": "google", "voice": "Aoede"},
+  "video": {"model": "veo-3.0-fast-generate-001", "duration": 6}
+}

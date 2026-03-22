@@ -82,19 +82,42 @@ if [ "$PROVIDER" = "google" ]; then
   echo "[provider] Google Veo explicitly requested" >&2
   # Google Veo flow
   if [ -z "$GEMINI_API_KEY" ]; then
-    echo "[google] No API key, fallback to kie.ai" >&2
-    kie_video_gen || { echo "ERROR: Semua video gen gagal" >&2; exit 1; }
-    exit 0
+    echo "" >&2
+    echo "🚨 FALLBACK CONFIRMATION REQUIRED 🚨" >&2
+    echo "" >&2
+    echo "Google Veo tidak tersedia (no API key)." >&2
+    echo "" >&2
+    echo "Alternative:" >&2
+    echo "🤖 Provider: kie.ai" >&2
+    echo "🎨 Model: Veo3 Fast" >&2
+    echo "💰 Cost: ~Rp 10,000 - Rp 15,000 (LEBIH MURAH -Rp 8K!)" >&2
+    echo "" >&2
+    echo "ERROR: Provider fallback requires user confirmation" >&2
+    echo "Please manually approve kie.ai or cancel operation" >&2
+    exit 1
   fi
 else
   # Default: kie.ai
   echo "[provider] Using kie.ai Veo3 Fast (default)" >&2
   kie_video_gen && exit 0
-  echo "[fallback] kie.ai gagal, coba Google Veo..." >&2
-  if [ -z "$GEMINI_API_KEY" ]; then
-    echo "ERROR: Google Veo unavailable (no API key)" >&2
-    exit 1
-  fi
+  
+  # kie.ai FAILED - REQUIRE CONFIRMATION FOR FALLBACK
+  echo "" >&2
+  echo "🚨 FALLBACK CONFIRMATION REQUIRED 🚨" >&2
+  echo "" >&2
+  echo "kie.ai Veo3 tidak tersedia atau gagal." >&2
+  echo "" >&2
+  echo "Alternative:" >&2
+  echo "🤖 Provider: Google Cloud Vertex AI" >&2
+  echo "🎨 Model: Veo 3.0 Fast" >&2
+  echo "💰 Cost: ~Rp 18,000 - Rp 23,000 (LEBIH MAHAL +Rp 8K!)" >&2
+  echo "📊 Note: Video + Audio charged separately" >&2
+  echo "" >&2
+  echo "⚠️  This is MORE EXPENSIVE than confirmed price!" >&2
+  echo "" >&2
+  echo "ERROR: Provider fallback requires user confirmation" >&2
+  echo "Please manually approve Google Veo or cancel operation" >&2
+  exit 1
 fi
 
 # ── GOOGLE VEO (fallback atau explicit) ──────────────────────────────────────

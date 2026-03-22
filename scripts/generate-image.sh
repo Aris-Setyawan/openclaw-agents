@@ -53,6 +53,12 @@ else
   echo "[gemini] API key tidak ditemukan, skip" >&2
 fi
 
+# ── FALLBACK WARNING ────────────────────────────────────────────────────────
+echo "" >&2
+echo "⚠️  WARNING: Gemini Imagen failed or unavailable" >&2
+echo "   Attempting fallback to kie.ai (may have different cost)" >&2
+echo "" >&2
+
 # Helper: poll kie.ai task sampai ada imageUrl (max 120s)
 kie_poll() {
   local ENDPOINT="$1"

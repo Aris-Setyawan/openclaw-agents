@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-03-22T04:52:47.152705+00:00",
+  "updated_at": "2026-03-22T05:10:18.414958+00:00",
   "telegram_active_agent": "agent1",
   "is_failover_active": false,
   "agents": {
@@ -7,57 +7,57 @@
       "status": "healthy",
       "provider": "openrouter",
       "fail_count": 0,
-      "last_ok": "2026-03-22T04:52:44.103059+00:00",
-      "last_check": "2026-03-22T04:52:44.103059+00:00"
+      "last_ok": "2026-03-22T05:10:05.229842+00:00",
+      "last_check": "2026-03-22T05:10:05.229842+00:00"
     },
     "agent2": {
       "status": "healthy",
       "provider": "deepseek",
       "fail_count": 0,
-      "last_ok": "2026-03-22T04:52:44.832220+00:00",
-      "last_check": "2026-03-22T04:52:44.832220+00:00"
+      "last_ok": "2026-03-22T05:10:11.148313+00:00",
+      "last_check": "2026-03-22T05:10:11.148313+00:00"
     },
     "agent3": {
       "status": "healthy",
       "provider": "deepseek",
       "fail_count": 0,
-      "last_ok": "2026-03-22T04:52:44.832381+00:00",
-      "last_check": "2026-03-22T04:52:44.832381+00:00"
+      "last_ok": "2026-03-22T05:10:11.148485+00:00",
+      "last_check": "2026-03-22T05:10:11.148485+00:00"
     },
     "agent4": {
       "status": "healthy",
       "provider": "anthropic",
       "fail_count": 0,
-      "last_ok": "2026-03-22T04:52:45.708480+00:00",
-      "last_check": "2026-03-22T04:52:45.708480+00:00"
+      "last_ok": "2026-03-22T05:10:16.492482+00:00",
+      "last_check": "2026-03-22T05:10:16.492482+00:00"
     },
     "agent5": {
       "status": "healthy",
       "provider": "anthropic",
       "fail_count": 0,
-      "last_ok": "2026-03-22T04:52:45.708624+00:00",
-      "last_check": "2026-03-22T04:52:45.708624+00:00"
+      "last_ok": "2026-03-22T05:10:16.492637+00:00",
+      "last_check": "2026-03-22T05:10:16.492637+00:00"
     },
     "agent6": {
       "status": "healthy",
       "provider": "modelstudio",
       "fail_count": 0,
-      "last_ok": "2026-03-22T04:52:47.152115+00:00",
-      "last_check": "2026-03-22T04:52:47.152115+00:00"
+      "last_ok": "2026-03-22T05:10:18.414331+00:00",
+      "last_check": "2026-03-22T05:10:18.414331+00:00"
     },
     "agent7": {
       "status": "healthy",
       "provider": "modelstudio",
       "fail_count": 0,
-      "last_ok": "2026-03-22T04:52:47.152255+00:00",
-      "last_check": "2026-03-22T04:52:47.152255+00:00"
+      "last_ok": "2026-03-22T05:10:18.414522+00:00",
+      "last_check": "2026-03-22T05:10:18.414522+00:00"
     },
     "agent8": {
       "status": "healthy",
       "provider": "modelstudio",
       "fail_count": 0,
-      "last_ok": "2026-03-22T04:52:47.152313+00:00",
-      "last_check": "2026-03-22T04:52:47.152313+00:00"
+      "last_ok": "2026-03-22T05:10:18.414593+00:00",
+      "last_check": "2026-03-22T05:10:18.414593+00:00"
     }
   },
   "pairs": [
