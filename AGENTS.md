@@ -82,12 +82,71 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 - When you make a mistake → document it so future-you doesn't repeat it
 - **Text > Brain** 📝
 
-## Red Lines
+## 🚨 Red Lines (ENFORCED! - Mar 22, 2026)
 
-- Don't exfiltrate private data. Ever.
-- Don't run destructive commands without asking.
-- `trash` > `rm` (recoverable beats gone forever)
-- When in doubt, ask.
+### NEVER Auto-Execute Without Asking:
+
+1. **💰 Image/Video Generation** → costs Rp 1-20K per item
+2. **🗑️ File Deletion** → irreversible (or hard to recover)
+3. **📝 Edit Critical Files** → AGENTS.md, TOOLS.md, SOUL.md, MEMORY.md, USER.md
+4. **📧 External Communication** → emails, tweets, public messages
+5. **⚡ Shell Commands** → anything outside `/root/.openclaw/workspace`
+6. **🔧 System Changes** → installing packages, changing configs
+
+### ALWAYS Confirm First:
+
+**Before executing, SEND CONFIRMATION MESSAGE:**
+
+```
+🚨 CONFIRMATION REQUIRED
+
+Action: Generate video via kie.ai
+Prompt: "Wulan minum kopi"
+Cost: ~Rp 15,000
+Duration: 6 seconds
+
+This costs money and cannot be undone.
+
+Reply:
+• 'yes' or 'y' → Proceed
+• 'no' or 'n' → Cancel
+```
+
+**Then WAIT for user reply** (next message).
+
+**If user says:**
+- ✅ "yes" / "y" / "proceed" / "ok" → Execute
+- ❌ "no" / "n" / "cancel" / "stop" → Don't execute
+- ❓ Anything else → Ask for clarification
+
+### User Can Cancel Anytime:
+
+- During confirmation prompt
+- By saying "stop" / "cancel" / "wait"
+- Between steps of multi-step operations
+
+### Default to SAFETY:
+
+- If unsure → **ASK**
+- If unclear → **DON'T execute**
+- If expensive → **SHOW cost first**
+- If irreversible → **WARN explicitly**
+
+**Old behavior (BAD ❌):**
+```
+User: "Buatin video Wulan"
+Agent: [langsung generate tanpa tanya]
+Result: Rp 15K charged, user surprised
+```
+
+**New behavior (GOOD ✅):**
+```
+User: "Buatin video Wulan"
+Agent: [kirim confirmation message with cost]
+User: "yes"
+Agent: [execute]
+Result: User knows cost, no surprise
+```
 
 ## External vs Internal
 
