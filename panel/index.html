@@ -6,6 +6,7 @@
 <title>OpenClaw Panel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 :root {
   --bg:        #080c10;
@@ -456,6 +457,9 @@ body {
     <div class="nav-item" data-tab="creative">
       <span class="icon">◈</span> Creative Config
     </div>
+    <div class="nav-item" data-tab="usage">
+      <span class="icon">📊</span> Usage & Saldo
+    </div>
     <div class="nav-item" data-tab="settings">
       <span class="icon">⚙</span> Settings
     </div>
@@ -601,6 +605,76 @@ body {
       </div>
       <div style="margin-top:20px">
         <button class="btn btn-primary" onclick="saveCreative()">Save Creative Config</button>
+      </div>
+    </section>
+
+    <!-- ── USAGE & SALDO ── -->
+    <section class="section" id="tab-usage">
+      <div class="section-title">Usage & Saldo</div>
+
+      <!-- Summary cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">
+        <div class="card" style="text-align:center;padding:16px">
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">TOTAL TOKENS</div>
+          <div id="u-total-tokens" style="font-size:22px;font-weight:700;color:var(--accent);font-family:var(--mono)">—</div>
+        </div>
+        <div class="card" style="text-align:center;padding:16px">
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">EST. BIAYA</div>
+          <div id="u-total-cost" style="font-size:22px;font-weight:700;color:var(--warn);font-family:var(--mono)">—</div>
+        </div>
+        <div class="card" style="text-align:center;padding:16px">
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">IMAGE GEN</div>
+          <div id="u-img-count" style="font-size:22px;font-weight:700;color:var(--ok);font-family:var(--mono)">—</div>
+        </div>
+        <div class="card" style="text-align:center;padding:16px">
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">VIDEO GEN</div>
+          <div id="u-vid-count" style="font-size:22px;font-weight:700;color:var(--ok);font-family:var(--mono)">—</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div class="card">
+          <div class="card-title">Token per Model</div>
+          <canvas id="chart-tokens" height="220"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Estimasi Biaya per Model (USD)</div>
+          <canvas id="chart-cost" height="220"></canvas>
+        </div>
+      </div>
+
+      <!-- Saldo section -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title">Saldo Provider</div>
+        <div id="u-balances" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:12px">
+          <div style="color:var(--text-dim);font-size:12px">Memuat...</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:14px" onclick="loadUsage()">⟳ Refresh</button>
+      </div>
+
+      <!-- Detail table -->
+      <div class="card">
+        <div class="card-title">Detail Penggunaan per Model</div>
+        <div style="overflow-x:auto;margin-top:12px">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)">
+            <thead>
+              <tr style="color:var(--text-dim);border-bottom:1px solid var(--border)">
+                <th style="text-align:left;padding:8px 6px">Model</th>
+                <th style="text-align:right;padding:8px 6px">Calls</th>
+                <th style="text-align:right;padding:8px 6px">Input Tok</th>
+                <th style="text-align:right;padding:8px 6px">Output Tok</th>
+                <th style="text-align:right;padding:8px 6px">Cache R/W</th>
+                <th style="text-align:right;padding:8px 6px">Total Tok</th>
+                <th style="text-align:right;padding:8px 6px">Est. Cost</th>
+                <th style="text-align:left;padding:8px 6px">Last Used</th>
+              </tr>
+            </thead>
+            <tbody id="u-table-body">
+              <tr><td colspan="8" style="color:var(--text-dim);padding:16px;text-align:center">Memuat data...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -945,6 +1019,166 @@ async function changeToken() {
     showToast('Gagal ganti token', 'err');
   }
 }
+
+// ── USAGE & SALDO ──────────────────────────────────────────────────────────
+let chartTokens = null;
+let chartCost   = null;
+
+const PROVIDER_COLORS = {
+  anthropic:   '#c678dd',
+  deepseek:    '#61afef',
+  gemini:      '#56b6c2',
+  openrouter:  '#e5c07b',
+  modelstudio: '#98c379',
+  openai:      '#e06c75',
+  openclaw:    '#5c6370',
+};
+function providerColor(p) {
+  return PROVIDER_COLORS[p] || '#abb2bf';
+}
+
+function fmtNum(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return String(n);
+}
+function fmtCost(v) {
+  return '$' + (v||0).toFixed(4);
+}
+function fmtDate(ts) {
+  if (!ts) return '—';
+  return ts.slice(0,16).replace('T',' ');
+}
+
+async function loadUsage() {
+  try {
+    const r = await fetch('/api/usage', {headers:{'X-Panel-Token':TOKEN}});
+    const d = await r.json();
+
+    // Summary cards
+    document.getElementById('u-total-tokens').textContent = fmtNum(d.grand_total_tokens || 0);
+    document.getElementById('u-total-cost').textContent   = fmtCost(d.grand_total_cost || 0);
+
+    const imgTotal = Object.values(d.image_count || {}).reduce((a,b)=>a+b,0);
+    const vidTotal = Object.values(d.video_count || {}).reduce((a,b)=>a+b,0);
+    document.getElementById('u-img-count').textContent = imgTotal;
+    document.getElementById('u-vid-count').textContent = vidTotal;
+
+    // Saldo
+    const balDiv = document.getElementById('u-balances');
+    const BALANCE_INFO = {
+      deepseek:    { label: 'DeepSeek', api: true },
+      openrouter:  { label: 'OpenRouter', note: 'Pay-as-you-go' },
+      anthropic:   { label: 'Anthropic', note: 'Pay-as-you-go' },
+      modelstudio: { label: 'ModelStudio', note: 'Pay-as-you-go' },
+      google:      { label: 'Google/Gemini', note: 'Pay-as-you-go' },
+      openai:      { label: 'OpenAI', note: 'Pay-as-you-go' },
+      kieai:       { label: 'Kie.ai', note: 'Credit-based' },
+    };
+    let balHtml = '';
+    for (const [key, info] of Object.entries(BALANCE_INFO)) {
+      const val = d.balances && d.balances[key] ? d.balances[key] : (info.note || '—');
+      const color = val.startsWith('$') ? 'var(--ok)' : 'var(--text-dim)';
+      balHtml += `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px">
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">${info.label}</div>
+        <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:${color}">${val}</div>
+      </div>`;
+    }
+    balDiv.innerHTML = balHtml;
+
+    // Table
+    const rows = d.rows || [];
+    const tbody = document.getElementById('u-table-body');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="color:var(--text-dim);padding:16px;text-align:center">Belum ada data usage</td></tr>';
+    } else {
+      tbody.innerHTML = rows.map(r => {
+        const c = providerColor(r.provider);
+        const cacheStr = `${fmtNum(r.cache_read||0)} / ${fmtNum(r.cache_write||0)}`;
+        const costColor = r.cost_usd > 0.1 ? 'var(--warn)' : r.cost_usd > 0.01 ? 'var(--accent)' : 'var(--text)';
+        return `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 6px">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin-right:6px"></span>
+            <span style="color:var(--text-dim)">${r.provider}/</span>${r.model}
+          </td>
+          <td style="text-align:right;padding:8px 6px;color:var(--text-dim)">${r.calls}</td>
+          <td style="text-align:right;padding:8px 6px;color:var(--accent)">${fmtNum(r.input||0)}</td>
+          <td style="text-align:right;padding:8px 6px;color:var(--ok)">${fmtNum(r.output||0)}</td>
+          <td style="text-align:right;padding:8px 6px;color:var(--text-dim);font-size:11px">${cacheStr}</td>
+          <td style="text-align:right;padding:8px 6px">${fmtNum(r.total_tokens||0)}</td>
+          <td style="text-align:right;padding:8px 6px;color:${costColor};font-weight:600">${fmtCost(r.cost_usd)}</td>
+          <td style="padding:8px 6px;color:var(--text-dim);font-size:11px">${fmtDate(r.last_used)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Charts
+    const top10 = rows.slice(0, 10);
+    const labels = top10.map(r => r.model.length > 20 ? r.model.slice(0,18)+'..' : r.model);
+    const colors = top10.map(r => providerColor(r.provider));
+
+    const ctxTok = document.getElementById('chart-tokens').getContext('2d');
+    if (chartTokens) chartTokens.destroy();
+    chartTokens = new Chart(ctxTok, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Total Tokens',
+          data: top10.map(r => r.total_tokens || 0),
+          backgroundColor: colors.map(c => c + 'bb'),
+          borderColor: colors,
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#5c6370', font: { size: 10 } }, grid: { color: '#1e2d3d' } },
+          y: { ticks: { color: '#5c6370', font: { size: 10 }, callback: v => fmtNum(v) }, grid: { color: '#1e2d3d' } }
+        }
+      }
+    });
+
+    const ctxCost = document.getElementById('chart-cost').getContext('2d');
+    if (chartCost) chartCost.destroy();
+    chartCost = new Chart(ctxCost, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Cost (USD)',
+          data: top10.map(r => r.cost_usd || 0),
+          backgroundColor: colors.map(c => c + 'bb'),
+          borderColor: colors,
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#5c6370', font: { size: 10 } }, grid: { color: '#1e2d3d' } },
+          y: { ticks: { color: '#5c6370', font: { size: 10 }, callback: v => '$'+v.toFixed(4) }, grid: { color: '#1e2d3d' } }
+        }
+      }
+    });
+
+  } catch(e) {
+    console.error('loadUsage error:', e);
+  }
+}
+
+// Auto-load usage saat tab dibuka
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    if (el.dataset.tab === 'usage') loadUsage();
+  });
+});
 
 // ── INIT ──
 loadStatus();
