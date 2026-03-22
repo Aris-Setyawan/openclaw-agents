@@ -12,6 +12,9 @@ if [ -z "$PROMPT" ]; then
   exit 1
 fi
 
+# ═══ MONITORING & RATE LIMIT ═══
+/root/.openclaw/workspace/scripts/monitor-api-usage.sh "generate-image" "image" "attempting" 2>/dev/null || true
+
 AUTH_FILE="/root/.openclaw/agents/agent1/agent/auth-profiles.json"
 GEMINI_API_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['google:default']['key'])" 2>/dev/null)
 KIE_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['kieai:default']['key'])" 2>/dev/null)
@@ -50,6 +53,12 @@ else
   echo "[gemini] API key tidak ditemukan, skip" >&2
 fi
 
+# ── FALLBACK WARNING ────────────────────────────────────────────────────────
+echo "" >&2
+echo "⚠️  WARNING: Gemini Imagen failed or unavailable" >&2
+echo "   Attempting fallback to kie.ai (may have different cost)" >&2
+echo "" >&2
+
 # Helper: poll kie.ai task sampai ada imageUrl (max 120s)
 kie_poll() {
   local ENDPOINT="$1"
@@ -62,8 +71,15 @@ kie_poll() {
     IMG_URL=$(echo "$STATUS" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
-imgs = d.get('data',{}).get('imageUrls',[])
-print(imgs[0] if imgs else '')
+data = d.get('data',{}) or {}
+# Flux Kontext: response.resultImageUrl
+r = data.get('response') or {}
+url = r.get('resultImageUrl','') or r.get('imageUrl','')
+# fallback: imageList array
+if not url:
+    imgs = r.get('imageList',[]) or data.get('imageUrls',[])
+    url = imgs[0] if imgs else ''
+print(url)
 " 2>/dev/null)
     echo "[kie.ai] ${WAITED}s — ${IMG_URL:+found}" >&2
     if [ -n "$IMG_URL" ]; then
@@ -99,29 +115,42 @@ if [ -n "$KIE_KEY" ]; then
   fi
   echo "[kie.ai flux] Gagal" >&2
 
-  # ── 3. KIE.AI Z-IMAGE (fallback 2, termurah) ────────────────────────────
-  echo "[fallback-2] kie.ai Z-image (cheapest)..." >&2
-  KIE_RESP2=$(curl -s -X POST "https://api.kie.ai/api/v1/z-image/generate" \
+  # ── 3. KIE.AI GPT-4O IMAGE (fallback 2) ─────────────────────────────────
+  echo "[fallback-2] kie.ai GPT-4o Image..." >&2
+  KIE_RESP2=$(curl -s -X POST "https://api.kie.ai/api/v1/gpt4o-image/generate" \
     -H "Authorization: Bearer $KIE_KEY" \
     -H "Content-Type: application/json" \
-    -d "{\"prompt\": \"$PROMPT\", \"aspectRatio\": \"1:1\"}")
+    -d "{\"prompt\": \"$PROMPT\", \"size\": \"1:1\"}")
 
   KIE_TASK2=$(echo "$KIE_RESP2" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
-  echo "[kie.ai z-image] taskId: $KIE_TASK2" >&2
+  echo "[kie.ai gpt4o] taskId: $KIE_TASK2" >&2
 
   if [ -n "$KIE_TASK2" ]; then
-    KIE_OUT2=/tmp/kiezimg-$(date +%s).jpg
-    IMG_URL2=$(kie_poll "https://api.kie.ai/api/v1/z-image/record-info" "$KIE_TASK2")
-    if [ -n "$IMG_URL2" ]; then
-      curl -s -L "$IMG_URL2" -o "$KIE_OUT2"
-      if [ -f "$KIE_OUT2" ] && [ -s "$KIE_OUT2" ]; then
-        /root/.openclaw/workspace/scripts/telegram-send.sh "$KIE_OUT2" "$CAPTION"
-        echo "IMAGE_SENT_OK"
-        exit 0
+    KIE_OUT2=/tmp/kiegpt4o-$(date +%s).png
+    # Poll dengan endpoint spesifik gpt4o-image
+    for j in $(seq 1 15); do
+      sleep 8
+      POLL2=$(curl -s "https://api.kie.ai/api/v1/gpt4o-image/record-info?taskId=$KIE_TASK2" \
+        -H "Authorization: Bearer $KIE_KEY")
+      IMG_URL2=$(echo "$POLL2" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+r = (d.get('data') or {}).get('response') or {}
+urls = r.get('resultUrls',[])
+print(urls[0] if urls else '')
+" 2>/dev/null)
+      echo "[kie.ai gpt4o] ${j} — ${IMG_URL2:+found}" >&2
+      if [ -n "$IMG_URL2" ]; then
+        curl -s -L "$IMG_URL2" -o "$KIE_OUT2"
+        if [ -f "$KIE_OUT2" ] && [ -s "$KIE_OUT2" ]; then
+          /root/.openclaw/workspace/scripts/telegram-send.sh "$KIE_OUT2" "$CAPTION"
+          echo "IMAGE_SENT_OK"
+          exit 0
+        fi
       fi
-    fi
+    done
   fi
-  echo "[kie.ai z-image] Gagal" >&2
+  echo "[kie.ai gpt4o] Gagal" >&2
 fi
 
 # ── 4. GPT-IMAGE-1.5 quality=medium (last resort) ───────────────────────────
