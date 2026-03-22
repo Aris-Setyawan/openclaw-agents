@@ -105,7 +105,7 @@ kieai_suno() {
   SUNO_RESP=$(curl -s -X POST "https://api.kie.ai/api/v1/generate" \
     -H "Authorization: Bearer $KIE_KEY" \
     -H "Content-Type: application/json" \
-    -d "{\"prompt\":\"$TEXT\",\"model\":\"$SUNO_MODEL\",\"customMode\":false,\"instrumental\":true}")
+    -d "{\"prompt\":\"$TEXT\",\"model\":\"$SUNO_MODEL\",\"customMode\":false,\"instrumental\":true,\"callBackUrl\":\"https://example.com/cb\"}")
 
   TASK_ID=$(echo "$SUNO_RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('taskId',''))" 2>/dev/null)
   if [ -z "$TASK_ID" ]; then
