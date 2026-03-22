@@ -1,20 +1,20 @@
 {
   "agents": {
     "defaults": {
-      "model": {
-        "primary": "openrouter/z-ai/glm-4.7-flash",
-        "fallbacks": [
-          "deepseek/deepseek-chat",
-          "modelstudio/qwen3.5-plus",
-          "openrouter/deepseek/deepseek-chat"
-        ]
-      }
+      "primary": "gemini/models/gemini-2.5-flash",
+      "fallbacks": [
+        "deepseek/deepseek-chat",
+        "modelstudio/qwen3.5-plus",
+        "openrouter/deepseek/deepseek-chat"
+      ]
     },
     "list": [
-      { "id": "main" },
+      {
+        "id": "main",
+        "model": {}
+      },
       {
         "id": "agent1",
-        "name": "Orchestrator/Telegram",
         "model": {
           "primary": "gemini/models/gemini-2.5-flash",
           "fallbacks": [
@@ -23,24 +23,10 @@
             "modelstudio/qwen3-max-2026-01-23",
             "openrouter/deepseek/deepseek-chat"
           ]
-        },
-        "note": "Gemini via proxy localhost:9998 — strip unsupported params"
-      },
-      {
-        "id": "agent2",
-        "name": "Creative",
-        "model": {
-          "primary": "deepseek/deepseek-chat",
-          "fallbacks": [
-            "modelstudio/qwen3.5-plus",
-            "gemini/models/gemini-2.5-flash",
-            "openrouter/deepseek/deepseek-chat"
-          ]
         }
       },
       {
         "id": "agent3",
-        "name": "Analytical",
         "model": {
           "primary": "modelstudio/qwen3-max-2026-01-23",
           "fallbacks": [
@@ -48,24 +34,33 @@
             "modelstudio/qwen3.5-plus",
             "openrouter/deepseek/deepseek-chat"
           ]
-        },
-        "note": "Switched from deepseek-reasoner to qwen3-max (cost optimization)"
+        }
+      },
+      {
+        "id": "agent2",
+        "model": {
+          "primary": "deepseek/deepseek-chat",
+          "fallbacks": [
+            "modelstudio/qwen3.5-plus",
+            "openrouter/deepseek/deepseek-chat",
+            "anthropic/claude-haiku-4-5"
+          ]
+        }
       },
       {
         "id": "agent4",
-        "name": "Technical/Coding",
         "model": {
           "primary": "anthropic/claude-opus-4-6",
           "fallbacks": [
             "anthropic/claude-haiku-4-5",
             "modelstudio/qwen3-coder-next",
+            "deepseek/deepseek-chat",
             "openrouter/deepseek/deepseek-chat"
           ]
         }
       },
       {
         "id": "agent5",
-        "name": "Backup Orchestrator",
         "model": {
           "primary": "anthropic/claude-haiku-4-5",
           "fallbacks": [
@@ -77,19 +72,17 @@
       },
       {
         "id": "agent6",
-        "name": "Backup Creative",
         "model": {
           "primary": "modelstudio/qwen3.5-plus",
           "fallbacks": [
             "deepseek/deepseek-chat",
-            "gemini/models/gemini-2.5-flash",
-            "openrouter/deepseek/deepseek-chat"
+            "openrouter/deepseek/deepseek-chat",
+            "anthropic/claude-haiku-4-5"
           ]
         }
       },
       {
         "id": "agent7",
-        "name": "Backup Analytical",
         "model": {
           "primary": "modelstudio/qwen3-max-2026-01-23",
           "fallbacks": [
@@ -101,13 +94,12 @@
       },
       {
         "id": "agent8",
-        "name": "Backup Technical",
         "model": {
           "primary": "modelstudio/qwen3-coder-next",
           "fallbacks": [
             "modelstudio/qwen3-coder-plus",
             "deepseek/deepseek-chat",
-            "openrouter/deepseek/deepseek-chat"
+            "anthropic/claude-haiku-4-5"
           ]
         }
       }
@@ -115,8 +107,8 @@
   },
   "last_updated": "2026-03-22",
   "strategy": {
-    "google_proxy": "localhost:9998 — strip unsupported params (store, thinking, max_completion_tokens)",
-    "openrouter_role": "last resort only — use deepseek/deepseek-chat (cheap) not gemini (expensive)",
-    "cost_priority": "free (gemini/modelstudio) → cheap (deepseek $0.001) → openrouter (last resort)"
+    "google_proxy": "localhost:9998 \u2014 strip unsupported params",
+    "openrouter_role": "last resort only \u2014 deepseek/deepseek-chat (bukan gemini yang mahal)",
+    "cost_priority": "free (gemini/modelstudio) \u2192 cheap (deepseek $0.001) \u2192 openrouter/deepseek (last resort)"
   }
 }
