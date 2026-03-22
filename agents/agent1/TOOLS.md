@@ -88,12 +88,11 @@ echo "agent3 jawab: $result"
 ## Image Generation
 
 ### ⚠️ ATURAN WAJIB IMAGE GEN
-1. **JANGAN generate gambar sendiri** — delegate ke Agent 2 via bash
+1. **PANGGIL SCRIPT LANGSUNG** — jangan delegate ke agent2 (boros token context agent2)
 2. **Default style: SELALU photorealistic** kecuali user eksplisit minta anime/kartun
-3. Setelah Agent 2 selesai generate, kirim ke Telegram pakai `telegram-send.sh`
 
 ### Cara Generate — CUKUP SATU COMMAND:
 ```bash
 /root/.openclaw/workspace/scripts/generate-image.sh "[deskripsi], photorealistic, professional photography, natural lighting, 4K" "[caption]"
 ```
-Script ini otomatis: ambil API key → generate via Gemini → fallback DALL-E → kirim ke Telegram.
+Script otomatis: model picker Telegram → generate → kirim. Output `IMAGE_SENT_OK` = selesai.
