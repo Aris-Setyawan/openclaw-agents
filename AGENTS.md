@@ -97,20 +97,35 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 
 **Before executing, SEND CONFIRMATION MESSAGE:**
 
+**MUST INCLUDE (in order):**
+1. **Provider & Model** (kie.ai Veo3, Google Veo, Gemini Imagen, etc.)
+2. **Cost estimate** (range in Rupiah)
+3. **Cost breakdown** (if multiple charges, like video + audio)
+4. **Risks/Warnings** (irreversible, expensive, etc.)
+5. **Alternatives** (cheaper options if applicable)
+6. **Clear yes/no options**
+
+**Example (Video Generation):**
 ```
-🚨 CONFIRMATION REQUIRED
+🚨 CONFIRMATION REQUIRED 🚨
 
-Action: Generate video via kie.ai
-Prompt: "Wulan minum kopi"
-Cost: ~Rp 15,000
-Duration: 6 seconds
+📹 Action: Generate video
+📝 Prompt: "Wulan minum kopi"
+⏱️  Duration: 6 seconds
 
-This costs money and cannot be undone.
+🤖 Provider: kie.ai
+🎨 Model: Veo3 Fast
+💰 Cost: ~Rp 10,000 - Rp 15,000
+📊 Audio: ✅ Included
+
+⚠️  This costs money and cannot be undone.
 
 Reply:
-• 'yes' or 'y' → Proceed
-• 'no' or 'n' → Cancel
+  • 'yes' → Proceed
+  • 'no' → Cancel
 ```
+
+**Standard templates:** `/root/.openclaw/workspace/docs/CONFIRMATION-MESSAGE-TEMPLATES.md`
 
 **Then WAIT for user reply** (next message).
 
