@@ -1,0 +1,65 @@
+
+[1;33m══════════════════════════════════════[0m
+[1;33mTEST 1: Basic Agent Response (1-8)[0m
+[1;33m══════════════════════════════════════[0m
+[0;34mℹ️  [0mTesting agent1...
+[0;32m✅ PASS[0m: agent1 responded: OK
+[0;34mℹ️  [0mTesting agent2...
+[0;32m✅ PASS[0m: agent2 responded: OK
+[0;34mℹ️  [0mTesting agent3...
+[0;32m✅ PASS[0m: agent3 responded: OK
+[0;34mℹ️  [0mTesting agent4...
+[0;32m✅ PASS[0m: agent4 responded: OK
+[0;34mℹ️  [0mTesting agent5...
+[0;32m✅ PASS[0m: agent5 responded: OK
+[0;34mℹ️  [0mTesting agent6...
+[0;32m✅ PASS[0m: agent6 responded: The multi-agent system worked perfectly - even aft
+[0;34mℹ️  [0mTesting agent7...
+[0;32m✅ PASS[0m: agent7 responded: *Or just say “go” and I’ll run the balance check a
+[0;34mℹ️  [0mTesting agent8...
+[0;32m✅ PASS[0m: agent8 responded: The ball is in your court, mas Aris! 🏀 Tell me wha
+
+[1;33m══════════════════════════════════════[0m
+[1;33mTEST 2: Shared Memory (agent1 write, agent2 read)[0m
+[1;33m══════════════════════════════════════[0m
+[0;34mℹ️  [0mWriting test token to shared memory...
+[0;32m✅ PASS[0m: Shared memory: agent2 read token written by agent1
+
+[1;33m══════════════════════════════════════[0m
+[1;33mTEST 3: Multi-Agent Flow (agent1 → agent3)[0m
+[1;33m══════════════════════════════════════[0m
+[0;32m✅ PASS[0m: agent3 analytical response received
+[0;34mℹ️  [0magent3: 2+2 = 4. Karena penjumlahan adalah operasi aritmatika dasar di mana dua bilangan dijumlahkan menghas
+
+[1;33m══════════════════════════════════════[0m
+[1;33mTEST 4: Agent4 Technical[0m
+[1;33m══════════════════════════════════════[0m
+[0;32m✅ PASS[0m: agent4 technical response: ```bash
+find /tmp -type f | wc -l
+```
+
+[1;33m══════════════════════════════════════[0m
+[1;33mTEST 5: Image Generation (agent1)[0m
+[1;33m══════════════════════════════════════[0m
+[0;34mℹ️  [0mTesting image gen via agent1...
+[0;32m✅ PASS[0m: Image gen initiated
+[0;34mℹ️  [0mTentu, mas Aris! 🧑‍🎄 Saya akan mendelegasikan tugas ini ke Agent 2 untuk membuat gambar lobster menggemaskan dengan topi wisuda dan mengirimkannya ke Telegram dengan caption 'Test gambar multi-agent'. Mohon tunggu sebentar ya.
+Wah, sepertinya ada sedikit kendala, mas Aris. 😬 Saya tidak diizinkan untuk memanggil `sessions_spawn` dengan `agentId` dari sini. Saya perlu memeriksa konfigurasi untuk melihat mengapa ini terjadi. Mohon maaf atas keterlambatannya.
+
+[1;33m══════════════════════════════════════[0m
+[1;33mTEST 6: Health State Consistency[0m
+[1;33m══════════════════════════════════════[0m
+[0;34mℹ️  [0mHealth state: 8/8 agents healthy
+[0;32m✅ PASS[0m: All 8 agents healthy
+
+[1;33m══════════════════════════════════════[0m
+[1;33mTEST 7: Gemini Proxy (agent1)[0m
+[1;33m══════════════════════════════════════[0m
+[0;32m✅ PASS[0m: Gemini proxy: 24 successful requests in last hour
+
+[1;33m══════════════════════════════════════[0m
+[1;33mSUMMARY[0m
+[1;33m══════════════════════════════════════[0m
+[0;32mPASS: 14/14[0m
+
+Log saved to: /root/.openclaw/workspace/tmp/test-20260321-024317.log
