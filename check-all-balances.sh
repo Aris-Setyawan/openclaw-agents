@@ -1,15 +1,30 @@
 #!/bin/bash
 # Check API balances for all configured providers
 
-AUTH_FILE="/root/.openclaw/agents/agent1/agent/auth-profiles.json"
+OPENCLAW_DIR="/root/.openclaw"
 
-# --- Load Keys (ensure they are available) ---
-DEEPSEEK_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles'].get('deepseek:default',{}).get('token',''))" 2>/dev/null)
-OPENROUTER_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles'].get('openrouter:default',{}).get('key',''))" 2>/dev/null)
-ANTHROPIC_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles'].get('anthropic:default',{}).get('token',''))" 2>/dev/null)
-MODELSTUDIO_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles'].get('modelstudio:default',{}).get('key',''))" 2>/dev/null)
-GOOGLE_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles'].get('google:default',{}).get('key',''))" 2>/dev/null)
-KIE_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles'].get('kieai:default',{}).get('key',''))" 2>/dev/null)
+# Cari key dari semua agent — ambil nilai pertama yang ditemukan
+get_key() {
+    local profile="$1" field="$2"
+    for auth in "$OPENCLAW_DIR"/agents/*/agent/auth-profiles.json; do
+        val=$(python3 -c "
+import json, sys
+try:
+    d = json.load(open('$auth'))
+    v = d.get('profiles',{}).get('$profile',{}).get('$field','')
+    if v: print(v)
+except: pass
+" 2>/dev/null)
+        if [ -n "$val" ]; then echo "$val"; return; fi
+    done
+}
+
+DEEPSEEK_KEY=$(get_key "deepseek:default" "token")
+OPENROUTER_KEY=$(get_key "openrouter:default" "key")
+ANTHROPIC_KEY=$(get_key "anthropic:default" "token")
+MODELSTUDIO_KEY=$(get_key "modelstudio:default" "key")
+GOOGLE_KEY=$(get_key "google:default" "key")
+KIE_KEY=$(get_key "kieai:default" "key")
 
 # --- Colors for better output ---
 RED='\033[0;31m'
