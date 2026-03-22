@@ -632,15 +632,26 @@ body {
         </div>
       </div>
 
-      <!-- Charts -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <!-- Charts row 1 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
         <div class="card">
-          <div class="card-title">Token per Model</div>
+          <div class="card-title">Token per Model (Top 8)</div>
           <canvas id="chart-tokens" height="220"></canvas>
         </div>
         <div class="card">
-          <div class="card-title">Estimasi Biaya per Model (USD)</div>
+          <div class="card-title">Biaya per Model USD (Top 8)</div>
           <canvas id="chart-cost" height="220"></canvas>
+        </div>
+      </div>
+      <!-- Charts row 2 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div class="card">
+          <div class="card-title">Biaya per Agent (USD)</div>
+          <canvas id="chart-agent" height="200"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Biaya Harian (USD) — Deteksi Spike</div>
+          <canvas id="chart-daily" height="200"></canvas>
         </div>
       </div>
 
@@ -1023,6 +1034,8 @@ async function changeToken() {
 // ── USAGE & SALDO ──────────────────────────────────────────────────────────
 let chartTokens = null;
 let chartCost   = null;
+let chartAgent  = null;
+let chartDaily  = null;
 
 const PROVIDER_COLORS = {
   anthropic:   '#c678dd',
@@ -1163,7 +1176,85 @@ async function loadUsage() {
         plugins: { legend: { display: false } },
         scales: {
           x: { ticks: { color: '#5c6370', font: { size: 10 } }, grid: { color: '#1e2d3d' } },
-          y: { ticks: { color: '#5c6370', font: { size: 10 }, callback: v => '$'+v.toFixed(4) }, grid: { color: '#1e2d3d' } }
+          y: { ticks: { color: '#5c6370', font: { size: 10 }, callback: v => '$'+v.toFixed(3) }, grid: { color: '#1e2d3d' } }
+        }
+      }
+    });
+
+    // ── Chart: Per Agent ──────────────────────────────────────────────
+    const agents = (d.agent_stats || []).sort((a,b) => b.cost_usd - a.cost_usd);
+    const AGENT_COLORS = {
+      main:   '#e06c75', agent1: '#61afef', agent2: '#c678dd',
+      agent3: '#e5c07b', agent4: '#56b6c2', agent5: '#98c379',
+      agent6: '#d19a66', agent7: '#abb2bf', agent8: '#5c6370',
+    };
+    const ctxAgent = document.getElementById('chart-agent').getContext('2d');
+    if (chartAgent) chartAgent.destroy();
+    chartAgent = new Chart(ctxAgent, {
+      type: 'bar',
+      data: {
+        labels: agents.map(a => a.id),
+        datasets: [{
+          label: 'Cost (USD)',
+          data: agents.map(a => a.cost_usd || 0),
+          backgroundColor: agents.map(a => (AGENT_COLORS[a.id] || '#abb2bf') + 'cc'),
+          borderColor: agents.map(a => AGENT_COLORS[a.id] || '#abb2bf'),
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              afterLabel: (ctx) => {
+                const a = agents[ctx.dataIndex];
+                return [`Calls: ${a.calls}`, `Tokens: ${fmtNum(a.total_tokens)}`, `Top: ${(a.top_model||'').split('/').pop()}`];
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#5c6370', font: { size: 11 } }, grid: { color: '#1e2d3d' } },
+          y: { ticks: { color: '#5c6370', font: { size: 10 }, callback: v => '$'+v.toFixed(3) }, grid: { color: '#1e2d3d' } }
+        }
+      }
+    });
+
+    // ── Chart: Daily Cost ─────────────────────────────────────────────
+    const daily = (d.daily || []);
+    const avgCost = daily.length ? daily.reduce((s,r) => s+r.cost, 0) / daily.length : 0;
+    const dailyColors = daily.map(r => r.cost > avgCost * 3 ? '#e06c75cc' : '#61afefcc');
+    const ctxDaily = document.getElementById('chart-daily').getContext('2d');
+    if (chartDaily) chartDaily.destroy();
+    chartDaily = new Chart(ctxDaily, {
+      type: 'bar',
+      data: {
+        labels: daily.map(r => r.date.slice(5)),  // MM-DD
+        datasets: [{
+          label: 'Daily Cost (USD)',
+          data: daily.map(r => r.cost),
+          backgroundColor: dailyColors,
+          borderColor: daily.map(r => r.cost > avgCost * 3 ? '#e06c75' : '#61afef'),
+          borderWidth: 1,
+          borderRadius: 3,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `$${ctx.raw.toFixed(4)} ${ctx.raw > avgCost*3 ? '⚠️ SPIKE!' : ''}`,
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#5c6370', font: { size: 10 } }, grid: { color: '#1e2d3d' } },
+          y: { ticks: { color: '#5c6370', font: { size: 10 }, callback: v => '$'+v.toFixed(2) }, grid: { color: '#1e2d3d' } }
         }
       }
     });

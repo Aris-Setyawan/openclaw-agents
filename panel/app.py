@@ -332,7 +332,59 @@ def api_usage():
     except Exception:
         pass
 
-    # ── 4. Ringkasan total ────────────────────────────────────────────────
+    # ── 3b. Per-agent breakdown ──────────────────────────────────────────
+    agent_stats = {}
+    for agent in AGENTS + ["main"]:
+        pattern = f"{BASE}/agents/{agent}/sessions/*.jsonl*"
+        a = {"id": agent, "total_tokens": 0, "cost_usd": 0.0, "calls": 0,
+             "input": 0, "output": 0, "top_model": ""}
+        model_cost = {}
+        for f in glob.glob(pattern):
+            try:
+                with open(f) as fp:
+                    for line in fp:
+                        d = json.loads(line)
+                        msg = d.get("message", {})
+                        if msg.get("role") != "assistant": continue
+                        usage = msg.get("usage", {})
+                        if not usage: continue
+                        tot  = usage.get("totalTokens", 0) or 0
+                        cost = (usage.get("cost", {}) or {}).get("total", 0) or 0
+                        inp  = usage.get("input", 0) or 0
+                        out  = usage.get("output", 0) or 0
+                        if tot == 0 and cost == 0: continue
+                        mk = f"{msg.get('provider','?')}/{msg.get('model','?')}"
+                        a["total_tokens"] += tot
+                        a["cost_usd"]     += cost
+                        a["calls"]        += 1
+                        a["input"]        += inp
+                        a["output"]       += out
+                        model_cost[mk] = model_cost.get(mk, 0) + cost
+            except: pass
+        if model_cost:
+            a["top_model"] = max(model_cost, key=model_cost.get)
+        if a["calls"] > 0:
+            agent_stats[agent] = a
+
+    # ── 4. Daily cost breakdown ───────────────────────────────────────────
+    daily = {}
+    for agent in AGENTS + ["main"]:
+        for f in glob.glob(f"{BASE}/agents/{agent}/sessions/*.jsonl*"):
+            try:
+                with open(f) as fp:
+                    for line in fp:
+                        d = json.loads(line)
+                        msg = d.get("message", {})
+                        if msg.get("role") != "assistant": continue
+                        usage = msg.get("usage", {})
+                        cost = (usage.get("cost", {}) or {}).get("total", 0) or 0
+                        if cost == 0: continue
+                        day = d.get("timestamp", "")[:10]
+                        if day:
+                            daily[day] = daily.get(day, 0) + cost
+            except: pass
+
+    # ── 5. Ringkasan total ────────────────────────────────────────────────
     grand_total_tokens = sum(v["total_tokens"] for v in stats.values())
     grand_total_cost   = sum(v["cost_usd"] for v in stats.values())
     rows = sorted(stats.values(), key=lambda x: -x["cost_usd"])
@@ -344,6 +396,8 @@ def api_usage():
         "image_count": image_count,
         "video_count": video_count,
         "balances": balances,
+        "agent_stats": list(agent_stats.values()),
+        "daily": [{"date": k, "cost": v} for k, v in sorted(daily.items())],
     })
 
 if __name__ == "__main__":
