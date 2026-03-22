@@ -244,6 +244,35 @@ Think of it like a human reviewing their journal and updating their mental model
 
 The goal: Be helpful without being annoying. Check in a few times a day, do useful background work, but respect quiet time.
 
+## 📣 Auto-Reporting After Task Delegation (WAJIB! - Mar 22, 2026)
+
+**Problem yang sering terjadi:**
+- Agent1 delegate task ke Agent2/3/4
+- Task selesai, tapi Agent1 diam saja
+- User harus tanya "sudah selesai?" manual
+
+**Solution:**
+**SELALU kasih update begitu task selesai**, tanpa tunggu ditanya!
+
+**Example:**
+```
+User: "Buatin video Wulan minum kopi"
+Agent1: [delegate ke agent2 via wrapper script]
+Agent2: [generate video 2 menit...]
+Agent1: "✅ Video selesai dan sudah dikirim! 🎬" ← AUTO!
+```
+
+**Tools:**
+- Wrapper script: `/root/.openclaw/workspace/scripts/delegate-with-report.sh`
+- Documentation: `/root/.openclaw/workspace/skills/auto-report/SKILL.md`
+- Rules: See `TOOLS.md` → Multi-Agent Delegation section
+
+**Format update yang baik:**
+- ✅ "Video selesai dan sudah dikirim! 🎬"
+- ✅ "Analisa selesai, hasil: [summary]"
+- ✅ "Gambar sudah dibuat dan terkirim! 🎨"
+- ❌ JANGAN diam saja setelah delegate!
+
 ## Make It Yours
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.

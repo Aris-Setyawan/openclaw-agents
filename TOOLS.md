@@ -104,19 +104,36 @@ Jika billing tiba-tiba tinggi:
 
 ## Multi-Agent Delegation (PENTING!)
 
-Gunakan command ini untuk delegate task ke agent lain via bash:
+### 📣 Auto-Reporting Rules (WAJIB! - Added Mar 22, 2026)
+
+**Problem:** User harus tanya "sudah selesai?" setiap kali task di-delegate.  
+**Solution:** SELALU kasih update begitu task selesai, TANPA ditanya!
+
+**Workflow yang benar:**
+1. User: "Buatin video Wulan minum kopi"
+2. Agent1: Delegate ke agent2
+3. Agent2: Generate video (1-3 menit)
+4. **Agent1: "✅ Video selesai dan sudah dikirim! 🎬"** ← AUTO, tanpa ditanya!
+
+### Delegation Commands
+
+**RECOMMENDED (auto-report):**
 ```bash
-# Kirimi agent lain task dan dapat response
+# Pakai wrapper untuk auto-announce completion
+/root/.openclaw/workspace/scripts/delegate-with-report.sh \
+  "agent2" \
+  "Generate image: wanita tersenyum" \
+  "✅ Gambar selesai dan sudah dikirim! 🎨"
+```
+
+**LEGACY (manual report - AVOID!):**
+```bash
+# Direct delegation (HARUS manual announce setelah selesai!)
 OPENCLAW=/www/server/nvm/versions/node/v22.20.0/bin/openclaw
+result=$($OPENCLAW agent --agent agent2 --message "Buat tagline produk X")
 
-# Delegate ke agent tertentu
-$OPENCLAW agent --agent agent2 --message "Buat tagline produk X"
-$OPENCLAW agent --agent agent3 --message "Analisa data ini: ..."
-$OPENCLAW agent --agent agent4 --message "Fix bug ini: ..."
-
-# Contoh pakai di bash:
-result=$($OPENCLAW agent --agent agent3 --message "Analisa: ..." 2>/dev/null)
-echo "agent3 jawab: $result"
+# ⚠️ WAJIB announce setelah dapat result:
+echo "✅ Task selesai: $result"
 ```
 
 **Routing Rule:**
@@ -124,6 +141,13 @@ echo "agent3 jawab: $result"
 - Analisa/riset → agent3 (DeepSeek Reasoner)
 - Coding/teknis → agent4 (Claude Opus)
 - Jika primary down → coba agent 5/6/7/8 (backup pair)
+
+**Format Update yang Baik:**
+- ✅ "Video selesai dan sudah dikirim! 🎬"
+- ✅ "Analisa selesai, hasil: [summary]"
+- ✅ "Gambar sudah dibuat dan terkirim! 🎨"
+- ❌ JANGAN diam saja setelah delegate
+- ❌ JANGAN tunggu user tanya "sudah?"
 
 ## Image Generation ⭐ INI TUGAS AGENT 2
 
