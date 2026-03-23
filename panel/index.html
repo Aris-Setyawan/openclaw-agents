@@ -506,6 +506,25 @@ body {
           <span style="font-size:11px;font-family:var(--mono);color:var(--text-dim)">Key lama tidak ditampilkan — paste key baru untuk update</span>
         </div>
       </div>
+
+      <!-- Web Search Config -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-title">🔍 Web Search Provider</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border)">
+              <th style="text-align:left;padding:8px 4px;color:var(--text-dim);font-weight:500;width:120px">Provider</th>
+              <th style="text-align:left;padding:8px 4px;color:var(--text-dim);font-weight:500">API Key</th>
+              <th style="text-align:center;padding:8px 4px;color:var(--text-dim);font-weight:500;width:80px">Aktif</th>
+            </tr>
+          </thead>
+          <tbody id="ws-rows"></tbody>
+        </table>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+          <button class="btn btn-primary" onclick="saveWebSearch()">Save Web Search</button>
+          <span id="ws-status" style="font-size:11px;font-family:var(--mono);color:var(--text-dim)"></span>
+        </div>
+      </div>
     </section>
 
     <!-- ── AGENT MODELS ── -->
@@ -824,6 +843,7 @@ async function loadConfig() {
     renderKeys();
     renderAgents();
     renderCreative();
+    renderWebSearch();
   } catch(e) {
     showToast('Gagal load config', 'err');
   }
@@ -862,6 +882,72 @@ async function saveKeys() {
     if (d.ok) { showToast('✓ API keys saved', 'ok'); await loadConfig(); }
     else showToast('Error: ' + (d.error||'unknown'), 'err');
   } catch(e) { showToast('Gagal save keys', 'err'); }
+}
+
+// ── WEB SEARCH ──
+const WS_PROVIDERS = [
+  { id:'gemini',     label:'Gemini (Google Search)',  placeholder:'AIzaSy...',  hint:'Google Search grounding' },
+  { id:'brave',      label:'Brave Search',             placeholder:'BSA...',     hint:'Structured results' },
+  { id:'grok',       label:'Grok (xAI)',               placeholder:'xai-...',    hint:'xAI web-grounded' },
+  { id:'kimi',       label:'Kimi (Moonshot)',           placeholder:'sk-...',     hint:'Moonshot web search' },
+  { id:'perplexity', label:'Perplexity',               placeholder:'pplx-...',   hint:'Perplexity search' },
+];
+
+function renderWebSearch() {
+  const ws = configData.websearch || {};
+  const activeProvider = ws.provider || '';
+  const tbody = document.getElementById('ws-rows');
+  if (!tbody) return;
+  tbody.innerHTML = WS_PROVIDERS.map(p => {
+    const masked = ws[p.id]?.apiKey || '';
+    const isActive = activeProvider === p.id;
+    return `
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 4px">
+        <div style="font-weight:500">${p.label}</div>
+        <div style="font-size:11px;color:var(--text-dim)">${p.hint}</div>
+      </td>
+      <td style="padding:8px 4px">
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="ws-key-${p.id}" type="password" class="key-input"
+            placeholder="${masked ? '(sudah ada — paste baru utk update)' : p.placeholder}"
+            autocomplete="off" style="flex:1;max-width:380px">
+          ${masked ? `<span style="font-size:11px;font-family:var(--mono);color:var(--accent-green)">${masked}</span>` : ''}
+        </div>
+      </td>
+      <td style="padding:8px 4px;text-align:center">
+        <input type="radio" name="ws-provider" value="${p.id}"
+          ${isActive ? 'checked' : ''} style="cursor:pointer;width:16px;height:16px">
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function saveWebSearch() {
+  const provider = document.querySelector('input[name="ws-provider"]:checked')?.value;
+  if (!provider) { showToast('Pilih provider dulu', 'err'); return; }
+
+  const payload = { provider, enabled: true };
+  WS_PROVIDERS.forEach(p => {
+    const key = document.getElementById('ws-key-' + p.id)?.value?.trim();
+    if (key) payload[p.id + '_key'] = key;
+  });
+
+  try {
+    const r = await fetch('/api/websearch', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-Panel-Token':TOKEN},
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (d.ok) {
+      showToast('✓ Web search config saved', 'ok');
+      document.getElementById('ws-status').textContent = `Provider: ${provider} · ${new Date().toLocaleTimeString()}`;
+      await loadConfig();
+    } else {
+      showToast('Error: ' + (d.error||'unknown'), 'err');
+    }
+  } catch(e) { showToast('Gagal save web search', 'err'); }
 }
 
 // ── AGENTS ──

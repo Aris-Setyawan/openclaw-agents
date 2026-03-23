@@ -164,12 +164,29 @@ def api_config():
         "video": {"model": "veo-3.0-fast-generate-001", "duration": 6},
     })
 
+    # Web search config
+    ws = cfg.get("tools", {}).get("web", {}).get("search", {})
+    websearch = {
+        "enabled":  ws.get("enabled", False),
+        "provider": ws.get("provider", ""),
+        "gemini":   {"apiKey": _mask(ws.get("gemini",{}).get("apiKey",""))},
+        "brave":    {"apiKey": _mask(ws.get("apiKey","") if ws.get("provider")=="brave" else ws.get("brave",{}).get("apiKey",""))},
+        "grok":     {"apiKey": _mask(ws.get("grok",{}).get("apiKey",""))},
+        "kimi":     {"apiKey": _mask(ws.get("kimi",{}).get("apiKey",""))},
+        "perplexity":{"apiKey": _mask(ws.get("perplexity",{}).get("apiKey",""))},
+    }
+
     return jsonify({
         "models": models_list,
         "agents": agents_cfg,
         "keys": keys,
         "creative": creative,
+        "websearch": websearch,
     })
+
+def _mask(val):
+    if not val: return ""
+    return (val[:10] + "..." + val[-4:]) if len(val) > 14 else "set"
 
 def update_openclaw_json_key(provider, value):
     """Update hardcoded API key di openclaw.json (misal Google Bearer token)"""
@@ -252,6 +269,48 @@ def api_creative():
     current = read_json(CREATIVE_CFG, {})
     current.update(data)
     write_json(CREATIVE_CFG, current)
+    return jsonify({"ok": True})
+
+@app.route("/api/websearch", methods=["GET","POST"])
+def api_websearch():
+    if request.method == "GET":
+        if not auth(request): return jsonify({"error":"unauthorized"}), 401
+        cfg = read_json(OPENCLAW_CFG, {})
+        ws = cfg.get("tools", {}).get("web", {}).get("search", {})
+        return jsonify({
+            "enabled":  ws.get("enabled", False),
+            "provider": ws.get("provider", ""),
+            "gemini":    ws.get("gemini", {}).get("apiKey", ""),
+            "brave":     ws.get("apiKey","") if ws.get("provider")=="brave" else ws.get("brave",{}).get("apiKey",""),
+            "grok":      ws.get("grok", {}).get("apiKey", ""),
+            "kimi":      ws.get("kimi", {}).get("apiKey", ""),
+            "perplexity":ws.get("perplexity", {}).get("apiKey", ""),
+        })
+
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    data = request.json or {}
+    cfg = read_json(OPENCLAW_CFG, {})
+    cfg.setdefault("tools", {}).setdefault("web", {})
+    search = cfg["tools"]["web"].setdefault("search", {})
+
+    if "enabled" in data:
+        search["enabled"] = bool(data["enabled"])
+    if "provider" in data:
+        search["provider"] = data["provider"]
+
+    # Update key sesuai provider
+    for prov in ["gemini","grok","kimi","perplexity"]:
+        key = data.get(prov, {}).get("apiKey") or data.get(prov+"_key","")
+        if key:
+            search.setdefault(prov, {})["apiKey"] = key
+    if data.get("brave_key") or data.get("brave",{}).get("apiKey"):
+        brave_key = data.get("brave_key") or data["brave"]["apiKey"]
+        if search.get("provider") == "brave":
+            search["apiKey"] = brave_key
+        else:
+            search.setdefault("brave", {})["apiKey"] = brave_key
+
+    write_json(OPENCLAW_CFG, cfg)
     return jsonify({"ok": True})
 
 @app.route("/api/usage")
