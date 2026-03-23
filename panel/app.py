@@ -171,12 +171,28 @@ def api_config():
         "creative": creative,
     })
 
+def update_openclaw_json_key(provider, value):
+    """Update hardcoded API key di openclaw.json (misal Google Bearer token)"""
+    try:
+        cfg = read_json(OPENCLAW_CFG, {})
+        cfg_str = json.dumps(cfg)
+        if provider == "google":
+            # Cari key lama dari auth-profiles agent1
+            old_key = get_agent_key("agent1", "google")
+            if old_key and old_key != value:
+                cfg_str = cfg_str.replace(old_key, value)
+                write_json(OPENCLAW_CFG, json.loads(cfg_str))
+    except Exception as e:
+        print(f"[panel] update_openclaw_json_key error: {e}")
+
 @app.route("/api/keys", methods=["POST"])
 def api_keys():
     if not auth(request): return jsonify({"error":"unauthorized"}), 401
     data = request.json or {}
     for prov, val in data.items():
         if val and prov in PROVIDER_KEYS:
+            # Update openclaw.json dulu (sebelum auth-profiles diupdate)
+            update_openclaw_json_key(prov, val)
             for a in AGENTS:
                 try: set_agent_key(a, prov, val)
                 except: pass
