@@ -45,7 +45,11 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 payload.pop("max_completion_tokens")
             body = json.dumps(payload).encode()
 
-        url = GOOGLE_BASE + self.path
+        # Strip /v1 prefix agar tidak double dengan GOOGLE_BASE
+        path = self.path
+        if path.startswith("/v1/"):
+            path = path[3:]
+        url = GOOGLE_BASE + path
         req = urllib.request.Request(url, data=body, method="POST")
         for k, v in self.headers.items():
             if k.lower() not in ("host", "content-length"):
@@ -69,9 +73,13 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             except Exception:
                 err = data.decode(errors="replace")
             print(f"[proxy] ERROR {e.code}: {err[:200]}", flush=True)
+            # Return JSON error (bukan binary gzip) supaya client bisa parse
+            err_json = json.dumps({"error": {"code": e.code, "message": err[:500]}}).encode()
             self.send_response(e.code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(err_json)))
             self.end_headers()
-            self.wfile.write(data)
+            self.wfile.write(err_json)
 
     def do_GET(self):
         url = GOOGLE_BASE + self.path
