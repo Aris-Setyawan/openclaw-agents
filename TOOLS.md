@@ -280,6 +280,40 @@ cat /root/.openclaw/workspace/health-state.json | python3 -m json.tool
 
 ---
 
+## 📡 Proactive Monitoring (OpenClaw Cron)
+
+| Monitor | Schedule | Alert Condition |
+|---------|----------|-----------------|
+| **Model Usage** | Hourly | API spikes/anomalies detected |
+| **Disk Monitor** | Every 4h | Disk >80% or big log files |
+| **GitHub Activity** | 9AM & 9PM WIB | New notifications/activity |
+| **IPTV Health** | Every 6h | FFmpeg down, web error, disk full |
+| **API Balance** | Daily 8AM WIB | Any provider low balance |
+| **ClawFlows Scheduler** | Every 15m | Run enabled workflows |
+
+**Rule:** Monitor HANYA kirim alert ke Telegram kalau ada masalah. Silent kalau semua OK.
+
+---
+
+## ⚡ Responsive Pattern — Tetap Jawab Saat Task Berjalan
+
+### Rule: Task lama (>5 detik) → BACKGROUND + langsung jawab user
+
+**Pattern:**
+1. User minta task berat → Santa jawab "Lagi diproses... 🔄"
+2. Jalankan di **background** (`exec background=true`) atau **sub-agent** (`sessions_spawn`)
+3. Santa **free** untuk jawab pertanyaan lain
+4. Setelah task selesai → kirim update otomatis
+
+**Cancel:** User bilang "stop/cancel/berhenti" → Santa kill process + konfirmasi
+
+**Background wajib untuk:** install, generate image/video/audio, API calls lambat, multi-step ops
+**Langsung aja untuk:** file read/write, quick checks, simple edits
+
+**Docs lengkap:** `docs/RESPONSIVE-PATTERN.md`
+
+---
+
 ## 📝 Important Notes
 
 - Credentials di `auth-profiles.json` dan `models.json`, BUKAN env vars

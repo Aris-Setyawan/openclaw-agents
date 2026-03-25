@@ -28,3 +28,15 @@ Total usage: $0.20376972
 - Gemini Direct API failed (fallback triggered)
 - Heavy usage period
 - Check fallback logs!
+[2026-03-25 07:03 UTC] ALERT: DeepSeek USAGE SPIKE!
+
+Used: $.15 in .99h
+Rate: ~$.1515/hour
+
+Projected:
+- Daily: ~$3.6360/day
+- Monthly: ~$109.0800/month
+
+Current balance: $2.55
+
+⚠️  Check for context bloat or excessive calls!
