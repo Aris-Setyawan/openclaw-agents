@@ -9,7 +9,7 @@ This folder is home. Treat it that way.
 | Agent | Domain | Pair/Backup | Model |
 |-------|--------|-------------|-------|
 | **Agent 1** | Orchestrator, Telegram handler | ↔ Agent 5 | Gemini Flash |
-| **Agent 2** | Creative, Marketing, Content | ↔ Agent 6 | DeepSeek Chat |
+| **Agent 2** | Creative, Marketing, Content | ↔ Agent 6 | Qwen Plus |
 | **Agent 3** | Analytical, Data, Research | ↔ Agent 7 | DeepSeek Reasoner |
 | **Agent 4** | Technical, Coding, DevOps | ↔ Agent 8 | Claude Opus |
 | **Agent 5** | Monitor/Supervisor, backup Agent 1 | ↔ Agent 1 | Claude Haiku |

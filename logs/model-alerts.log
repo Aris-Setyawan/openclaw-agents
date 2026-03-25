@@ -1,0 +1,30 @@
+[2026-03-22 12:03 UTC] ALERT: OpenRouter USAGE SPIKE!
+
+Used: +$.02799717 in .45h
+Rate: ~$.0622/hour
+
+Projected:
+- Daily: ~$1.4928/day
+- Monthly: ~$44.7840/month
+
+Total usage: $0.17041765
+
+⚠️  Possible causes:
+- Gemini Direct API failed (fallback triggered)
+- Heavy usage period
+- Check fallback logs!
+[2026-03-22 13:03 UTC] ALERT: OpenRouter USAGE SPIKE!
+
+Used: +$.03335207 in 1.00h
+Rate: ~$.0333/hour
+
+Projected:
+- Daily: ~$.7992/day
+- Monthly: ~$23.9760/month
+
+Total usage: $0.20376972
+
+⚠️  Possible causes:
+- Gemini Direct API failed (fallback triggered)
+- Heavy usage period
+- Check fallback logs!
