@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-03-26T05:59:01.886279+00:00",
+  "updated_at": "2026-03-26T11:59:02.449619+00:00",
   "telegram_active_agent": "agent1",
   "is_failover_active": false,
   "agents": {
@@ -8,56 +8,56 @@
       "provider": "gemini",
       "fail_count": 0,
       "last_ok": "2026-03-23T05:50:37.905979+00:00",
-      "last_check": "2026-03-26T05:59:01.886279+00:00"
+      "last_check": "2026-03-26T11:59:02.449619+00:00"
     },
     "agent2": {
       "status": "healthy",
       "provider": "deepseek",
       "fail_count": 0,
       "last_ok": "2026-03-23T05:50:37.905979+00:00",
-      "last_check": "2026-03-26T05:59:01.886279+00:00"
+      "last_check": "2026-03-26T11:59:02.449619+00:00"
     },
     "agent3": {
       "status": "healthy",
       "provider": "deepseek",
       "fail_count": 0,
       "last_ok": "2026-03-23T05:50:37.905979+00:00",
-      "last_check": "2026-03-26T05:59:01.886279+00:00"
+      "last_check": "2026-03-26T11:59:02.449619+00:00"
     },
     "agent4": {
       "status": "healthy",
       "provider": "anthropic",
       "fail_count": 0,
       "last_ok": "2026-03-23T05:50:37.905979+00:00",
-      "last_check": "2026-03-26T05:59:01.886279+00:00"
+      "last_check": "2026-03-26T11:59:02.449619+00:00"
     },
     "agent5": {
       "status": "healthy",
       "provider": "anthropic",
       "fail_count": 0,
       "last_ok": "2026-03-23T05:50:37.905979+00:00",
-      "last_check": "2026-03-26T05:59:01.886279+00:00"
+      "last_check": "2026-03-26T11:59:02.449619+00:00"
     },
     "agent6": {
       "status": "healthy",
       "provider": "deepseek",
       "fail_count": 0,
       "last_ok": "2026-03-23T05:50:37.905979+00:00",
-      "last_check": "2026-03-26T05:59:01.886279+00:00"
+      "last_check": "2026-03-26T11:59:02.449619+00:00"
     },
     "agent7": {
       "status": "healthy",
       "provider": "deepseek",
       "fail_count": 0,
       "last_ok": "2026-03-23T05:50:37.905979+00:00",
-      "last_check": "2026-03-26T05:59:01.886279+00:00"
+      "last_check": "2026-03-26T11:59:02.449619+00:00"
     },
     "agent8": {
       "status": "healthy",
       "provider": "deepseek",
       "fail_count": 0,
       "last_ok": "2026-03-23T05:50:37.905979+00:00",
-      "last_check": "2026-03-26T05:59:01.886279+00:00"
+      "last_check": "2026-03-26T11:59:02.449619+00:00"
     }
   },
   "pairs": [
