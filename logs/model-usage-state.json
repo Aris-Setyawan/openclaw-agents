@@ -1,16 +1,16 @@
 {
-  "last_check_ts": 1774566208,
-  "last_check_datetime": "2026-03-26 23:03 UTC",
+  "last_check_ts": 1774587807,
+  "last_check_datetime": "2026-03-27 05:03 UTC",
   "providers": {
     "deepseek": {
-      "balance": 2.34,
-      "used_since_last": 0,
-      "hourly_rate": 0
+      "balance": 2.05,
+      "used_since_last": .02,
+      "hourly_rate": .0202
     },
     "openrouter": {
-      "usage": 0.22294097,
-      "increase_since_last": 0,
-      "hourly_rate": 0
+      "usage": 0.32606897,
+      "increase_since_last": .04234500,
+      "hourly_rate": .0427
     }
   },
   "thresholds": {

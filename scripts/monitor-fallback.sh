@@ -30,9 +30,8 @@ test_primary_healthy() {
 
   case "$provider" in
     gemini)
-      proxy_url="http://127.0.0.1:9998/v1/chat/completions"
-      api_key=$(python3 -c "import json; d=json.load(open('$OPENCLAW_DIR/agents/agent1/agent/auth-profiles.json')); print(d['profiles'].get('google:default',{}).get('key',''))" 2>/dev/null)
-      model="gemini-2.5-flash"
+      # DISABLED — direct API calls cost money!
+      return 1
       ;;
     deepseek)
       proxy_url="https://api.deepseek.com/v1/chat/completions"
