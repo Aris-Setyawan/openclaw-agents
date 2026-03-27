@@ -82,3 +82,72 @@ Total usage: $0.32606897
 - Gemini Direct API failed (fallback triggered)
 - Heavy usage period
 - Check fallback logs!
+[2026-03-27 06:03 UTC] ALERT: DeepSeek USAGE SPIKE!
+
+Used: $.30 in 1.00h
+Rate: ~$.3000/hour
+
+Projected:
+- Daily: ~$7.2000/day
+- Monthly: ~$216.0000/month
+
+Current balance: $1.75
+
+⚠️  Check for context bloat or excessive calls!
+[2026-03-27 06:03 UTC] ALERT: OpenRouter USAGE SPIKE!
+
+Used: +$1.24313900 in 1.00h
+Rate: ~$1.2431/hour
+
+Projected:
+- Daily: ~$29.8344/day
+- Monthly: ~$895.0320/month
+
+Total usage: $1.56920797
+
+⚠️  Possible causes:
+- Gemini Direct API failed (fallback triggered)
+- Heavy usage period
+- Check fallback logs!
+[2026-03-27 08:03 UTC] ALERT: OpenRouter USAGE SPIKE!
+
+Used: +$.15056000 in 1.00h
+Rate: ~$.1505/hour
+
+Projected:
+- Daily: ~$3.6120/day
+- Monthly: ~$108.3600/month
+
+Total usage: $1.71976797
+
+⚠️  Possible causes:
+- Gemini Direct API failed (fallback triggered)
+- Heavy usage period
+- Check fallback logs!
+[2026-03-27 09:40 UTC] ALERT: OpenRouter USAGE SPIKE!
+
+Used: +$1.33393300 in 1.00h
+Rate: ~$1.3339/hour
+
+Projected:
+- Daily: ~$32.0136/day
+- Monthly: ~$960.4080/month
+
+Total usage: $3.05370097
+
+⚠️  Possible causes:
+- Gemini Direct API failed (fallback triggered)
+- Heavy usage period
+- Check fallback logs!
+[2026-03-27 10:03 UTC] ALERT: DeepSeek USAGE SPIKE!
+
+Used: $.14 in .36h
+Rate: ~$.3888/hour
+
+Projected:
+- Daily: ~$9.3312/day
+- Monthly: ~$279.9360/month
+
+Current balance: $1.46
+
+⚠️  Check for context bloat or excessive calls!
