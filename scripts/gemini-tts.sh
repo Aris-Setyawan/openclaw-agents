@@ -23,7 +23,12 @@
 set -euo pipefail
 
 # --- Config ---
-GEMINI_KEY="AIzaSyDNovWNTRyvJ8ukr_1bsw8jofoltB7PSJQ"
+AUTH_FILE="/root/.openclaw/agents/agent1/agent/auth-profiles.json"
+GEMINI_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['google:default']['key'])" 2>/dev/null)
+if [ -z "$GEMINI_KEY" ]; then
+  echo "ERROR: Google API key not found in $AUTH_FILE"
+  exit 1
+fi
 MODEL="gemini-2.5-flash-preview-tts"
 API_URL="https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_KEY}"
 DEFAULT_VOICE="Kore"

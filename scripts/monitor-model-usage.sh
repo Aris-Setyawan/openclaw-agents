@@ -18,16 +18,21 @@ fi
 TIMESTAMP=$(date +%s)
 DATETIME=$(date -u '+%Y-%m-%d %H:%M UTC')
 
+# ━━━ Read keys from auth-profiles ━━━
+AUTH_FILE="/root/.openclaw/agents/agent1/agent/auth-profiles.json"
+DS_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['deepseek:default']['token'])" 2>/dev/null)
+OR_KEY=$(python3 -c "import json; d=json.load(open('$AUTH_FILE')); print(d['profiles']['openrouter:default']['key'])" 2>/dev/null)
+
 # ━━━ Fetch current balances ━━━
 
 # DeepSeek
 DEEPSEEK_BALANCE=$(curl -s https://api.deepseek.com/user/balance \
-  -H "Authorization: Bearer sk-7f9a50b9c1da48d7b50293d4d75d345e" | \
+  -H "Authorization: Bearer $DS_KEY" | \
   jq -r '.balance_infos[0].total_balance // "0"' 2>/dev/null || echo "0")
 
 # OpenRouter
 OPENROUTER_USAGE=$(curl -s https://openrouter.ai/api/v1/auth/key \
-  -H "Authorization: Bearer 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" | \
+  -H "Authorization: Bearer $OR_KEY" | \
   jq -r '.data.usage // 0' 2>/dev/null || echo "0")
 
 # Load previous state
