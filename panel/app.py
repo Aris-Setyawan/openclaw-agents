@@ -48,15 +48,7 @@ AGENT_ROLES = {
     "agent7": "Backup Analytical",
     "agent8": "Backup Technical",
 }
-PROVIDER_KEYS = {
-    "google":      ("google:default",   "key"),
-    "openai":      ("openai:default",   "key"),
-    "openrouter":  ("openrouter:default","key"),
-    "deepseek":    ("deepseek:default", "token"),
-    "modelstudio": ("modelstudio:default","key"),
-    "anthropic":   ("anthropic:default","token"),
-    "kieai":       ("kieai:default",    "key"),
-}
+ALL_AGENTS = AGENTS + ["main"]
 
 def auth(req):
     token = req.headers.get("X-Panel-Token","")
@@ -75,36 +67,108 @@ def write_json(path, data):
 def auth_profiles_path(agent):
     return f"{BASE}/agents/{agent}/agent/auth-profiles.json"
 
+def _get_profile_key(profile):
+    """Ambil value key dari profile — coba 'key' dulu, lalu 'token'."""
+    return profile.get("key") or profile.get("token") or ""
+
+def _set_profile_key(profile, value):
+    """Set key value — pakai field 'key' atau 'token' sesuai yg sudah ada."""
+    if "token" in profile:
+        profile["token"] = value
+    else:
+        profile["key"] = value
+
+def discover_providers():
+    """Discover semua provider dari openclaw.json + auth-profiles. Return dict {name: {models, has_key, key_masked}}."""
+    cfg = read_json(OPENCLAW_CFG, {})
+    result = {}
+
+    # 1. Dari models.providers di openclaw.json
+    for pname, pdata in cfg.get("models", {}).get("providers", {}).items():
+        result[pname] = {
+            "id": pname,
+            "model_count": len(pdata.get("models", [])),
+        }
+
+    # 2. Dari auth-profiles agent1 (sumber utama keys)
+    d = read_json(auth_profiles_path("agent1"))
+    for profile_name, profile in d.get("profiles", {}).items():
+        prov = profile_name.split(":")[0]
+        if prov not in result:
+            result[prov] = {"id": prov, "model_count": 0}
+        key_val = _get_profile_key(profile)
+        result[prov]["has_key"] = bool(key_val)
+        result[prov]["key_masked"] = (key_val[:12]+"..."+key_val[-6:]) if len(key_val) > 18 else ("set" if key_val else "")
+
+    # 3. Juga cek main agent (bisa punya key yg belum di-propagate)
+    d_main = read_json(auth_profiles_path("main"))
+    for profile_name, profile in d_main.get("profiles", {}).items():
+        prov = profile_name.split(":")[0]
+        if prov not in result:
+            result[prov] = {"id": prov, "model_count": 0}
+        if not result[prov].get("has_key"):
+            key_val = _get_profile_key(profile)
+            if key_val:
+                result[prov]["has_key"] = True
+                result[prov]["key_masked"] = (key_val[:12]+"..."+key_val[-6:]) if len(key_val) > 18 else ("set" if key_val else "")
+                result[prov]["only_in_main"] = True  # belum di-propagate
+
+    return result
+
 def get_agent_key(agent, provider):
     d = read_json(auth_profiles_path(agent))
-    profile_name, key_field = PROVIDER_KEYS.get(provider, (None, None))
-    if not profile_name:
-        return ""
-    return d.get("profiles", {}).get(profile_name, {}).get(key_field, "")
+    profile = d.get("profiles", {}).get(f"{provider}:default", {})
+    return _get_profile_key(profile)
 
 def set_agent_key(agent, provider, value):
+    """Set key untuk satu agent. Auto-detect key field."""
     path = auth_profiles_path(agent)
     d = read_json(path, {"profiles": {}})
-    profile_name, key_field = PROVIDER_KEYS.get(provider, (None, None))
-    if not profile_name:
-        return
+    profile_name = f"{provider}:default"
     if profile_name not in d.setdefault("profiles", {}):
-        d["profiles"][profile_name] = {"provider": provider}
-    d["profiles"][profile_name][key_field] = value
+        d["profiles"][profile_name] = {"provider": provider, "type": "api_key"}
+    _set_profile_key(d["profiles"][profile_name], value)
     write_json(path, d)
+
+def propagate_key(provider, value):
+    """Propagate key ke SEMUA agents (agent1-8 + main)."""
+    for agent in ALL_AGENTS:
+        try:
+            set_agent_key(agent, provider, value)
+        except Exception as e:
+            print(f"[panel] propagate_key {provider} -> {agent} error: {e}")
 
 # ─────────────────────────────────────────────
 @app.route("/api/status")
 def api_status():
     health = read_json(HEALTH_FILE, {})
+
+    # Baca model config real-time dari openclaw.json
+    cfg = read_json(OPENCLAW_CFG, {})
+    agents_section = cfg.get("agents", {})
+    global_model = agents_section.get("defaults", {}).get("model", {})
+    global_primary = global_model.get("primary", "")
+    raw_list = agents_section.get("list", [])
+    if isinstance(raw_list, list):
+        agents_map = {item["id"]: item for item in raw_list if "id" in item}
+    else:
+        agents_map = raw_list
+
     agents_out = []
     for a in AGENTS:
         info = health.get("agents", {}).get(a, {})
+        # Model: per-agent override atau global default
+        acfg = agents_map.get(a, {})
+        model_cfg = acfg.get("model", {})
+        current_model = model_cfg.get("primary") or global_primary
+        # Provider dari model string (format: "provider/model")
+        current_provider = current_model.split("/")[0] if "/" in current_model else info.get("provider", "—")
         agents_out.append({
             "id": a,
             "role": AGENT_ROLES.get(a, ""),
             "status": info.get("status", "unknown"),
-            "provider": info.get("provider", "—"),
+            "provider": current_provider,
+            "model": current_model,
             "last_ok": info.get("last_ok", ""),
             "fail_count": info.get("fail_count", 0),
         })
@@ -124,8 +188,14 @@ def api_config():
         for m in pdata.get("models", []):
             models_list.append(f"{pname}/{m['id']}")
 
-    # agents.list bisa array [{id, model, ...}] atau dict {agentId: {...}}
-    raw_list = cfg.get("agents", {}).get("list", [])
+    # Global defaults — sumber kebenaran utama
+    agents_section = cfg.get("agents", {})
+    global_model = agents_section.get("defaults", {}).get("model", {})
+    global_primary   = global_model.get("primary", "")
+    global_fallbacks = global_model.get("fallbacks", [])
+
+    # Per-agent overrides di agents.list (opsional, override global)
+    raw_list = agents_section.get("list", [])
     if isinstance(raw_list, list):
         agents_map = {item["id"]: item for item in raw_list if "id" in item}
     else:
@@ -136,9 +206,9 @@ def api_config():
     for a in AGENTS:
         acfg = agents_map.get(a, {})
         model_cfg = acfg.get("model", {})
-        primary = model_cfg.get("primary", "")
-        fallbacks = model_cfg.get("fallbacks", [])
-        # Collect models not in providers list so dropdown can show them
+        # Per-agent override menang; fallback ke global defaults
+        primary   = model_cfg.get("primary")   or global_primary
+        fallbacks = model_cfg.get("fallbacks") or global_fallbacks
         for m in [primary] + fallbacks:
             if m and m not in models_list:
                 extra_models.add(m)
@@ -147,16 +217,25 @@ def api_config():
             "role": AGENT_ROLES.get(a, ""),
             "primary": primary,
             "fallbacks": fallbacks,
+            "is_override": bool(model_cfg.get("primary")),  # tandai kalau ada override
         })
     models_list = sorted(extra_models) + models_list
 
-    # API keys (masked)
-    keys = {}
-    d = read_json(auth_profiles_path("agent1"))
-    profiles = d.get("profiles", {})
-    for prov, (pname, kf) in PROVIDER_KEYS.items():
-        val = profiles.get(pname, {}).get(kf, "")
-        keys[prov] = (val[:12] + "..." + val[-6:]) if len(val) > 18 else ("set" if val else "")
+    # Global defaults info untuk panel
+    global_cfg = {
+        "primary": global_primary,
+        "fallbacks": global_fallbacks,
+    }
+
+    # Providers + API keys — dynamic discovery
+    all_providers = discover_providers()
+    keys = {p: info.get("key_masked", "") for p, info in all_providers.items()}
+    providers_list = [
+        {"id": p, "model_count": info.get("model_count", 0),
+         "has_key": info.get("has_key", False),
+         "only_in_main": info.get("only_in_main", False)}
+        for p, info in sorted(all_providers.items())
+    ]
 
     creative = read_json(CREATIVE_CFG, {
         "image": {"provider": "gemini", "style": "photorealistic"},
@@ -179,6 +258,8 @@ def api_config():
     return jsonify({
         "models": models_list,
         "agents": agents_cfg,
+        "global": global_cfg,
+        "providers": providers_list,
         "keys": keys,
         "creative": creative,
         "websearch": websearch,
@@ -206,47 +287,65 @@ def update_openclaw_json_key(provider, value):
 def api_keys():
     if not auth(request): return jsonify({"error":"unauthorized"}), 401
     data = request.json or {}
+    updated = []
     for prov, val in data.items():
-        if val and prov in PROVIDER_KEYS:
-            # Update openclaw.json dulu (sebelum auth-profiles diupdate)
-            update_openclaw_json_key(prov, val)
-            for a in AGENTS:
-                try: set_agent_key(a, prov, val)
-                except: pass
-    return jsonify({"ok": True})
+        if not val:
+            continue
+        # Update openclaw.json (misal Google Bearer token)
+        update_openclaw_json_key(prov, val)
+        # Propagate ke SEMUA agents (agent1-8 + main)
+        propagate_key(prov, val)
+        updated.append(prov)
+    return jsonify({"ok": True, "propagated": updated})
 
 @app.route("/api/agents", methods=["POST"])
 def api_agents():
     if not auth(request): return jsonify({"error":"unauthorized"}), 401
     data = request.json or {}
-    cfg = read_json(OPENCLAW_CFG, {})
-    raw_list = cfg.get("agents", {}).get("list", [])
 
-    # Build map untuk update
-    if isinstance(raw_list, list):
-        agents_map = {item["id"]: item for item in raw_list if "id" in item}
-    else:
-        agents_map = raw_list
+    # Jika ada "global" key → update defaults via openclaw config set (proper channel)
+    glb = data.get("global", {})
+    if glb.get("primary"):
+        subprocess.run(
+            ["openclaw", "config", "set", "agents.defaults.model.primary", glb["primary"]],
+            capture_output=True, text=True, timeout=10
+        )
+    if glb.get("fallbacks") is not None:
+        import shlex
+        fallbacks_json = json.dumps([f for f in glb["fallbacks"] if f])
+        subprocess.run(
+            ["openclaw", "config", "set", "agents.defaults.model.fallbacks", fallbacks_json],
+            capture_output=True, text=True, timeout=10
+        )
 
-    for item in data.get("agents", []):
-        aid = item.get("id")
-        if not aid: continue
-        if aid not in agents_map:
-            agents_map[aid] = {"id": aid}
-        agents_map[aid].setdefault("model", {})
-        if item.get("primary"):
-            agents_map[aid]["model"]["primary"] = item["primary"]
-        fallbacks = [f for f in item.get("fallbacks", []) if f]
-        if fallbacks:
-            agents_map[aid]["model"]["fallbacks"] = fallbacks
+    # Per-agent overrides (jika ada) → tulis ke agents.list
+    agent_items = data.get("agents", [])
+    if agent_items:
+        cfg = read_json(OPENCLAW_CFG, {})
+        raw_list = cfg.get("agents", {}).get("list", [])
+        if isinstance(raw_list, list):
+            agents_map = {item["id"]: item for item in raw_list if "id" in item}
+        else:
+            agents_map = raw_list
 
-    # Tulis kembali sesuai format asli
-    if isinstance(raw_list, list):
-        cfg["agents"]["list"] = list(agents_map.values())
-    else:
-        cfg["agents"]["list"] = agents_map
+        for item in agent_items:
+            aid = item.get("id")
+            if not aid: continue
+            if aid not in agents_map:
+                agents_map[aid] = {"id": aid}
+            agents_map[aid].setdefault("model", {})
+            if item.get("primary"):
+                agents_map[aid]["model"]["primary"] = item["primary"]
+            fallbacks = [f for f in item.get("fallbacks", []) if f]
+            if fallbacks:
+                agents_map[aid]["model"]["fallbacks"] = fallbacks
 
-    write_json(OPENCLAW_CFG, cfg)
+        if isinstance(raw_list, list):
+            cfg["agents"]["list"] = list(agents_map.values())
+        else:
+            cfg["agents"]["list"] = agents_map
+        write_json(OPENCLAW_CFG, cfg)
+
     return jsonify({"ok": True})
 
 @app.route("/api/token", methods=["POST"])
@@ -312,6 +411,30 @@ def api_websearch():
 
     write_json(OPENCLAW_CFG, cfg)
     return jsonify({"ok": True})
+
+@app.route("/api/config/hash")
+def api_config_hash():
+    """Lightweight endpoint untuk browser polling — cek apakah config berubah.
+    Cek mtime openclaw.json + auth-profiles agent1 + main (catch key changes)."""
+    try:
+        mtime = os.path.getmtime(OPENCLAW_CFG)
+        # Juga cek auth-profiles — key bisa berubah tanpa openclaw.json berubah
+        for agent in ["agent1", "main"]:
+            try:
+                mtime = max(mtime, os.path.getmtime(auth_profiles_path(agent)))
+            except OSError:
+                pass
+        cfg = read_json(OPENCLAW_CFG, {})
+        ag = cfg.get("agents", {})
+        primary = ag.get("defaults", {}).get("model", {}).get("primary", "")
+        fallbacks = ag.get("defaults", {}).get("model", {}).get("fallbacks", [])
+        return jsonify({
+            "mtime": mtime,
+            "primary": primary,
+            "fallbacks": fallbacks,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/usage")
 def api_usage():

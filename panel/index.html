@@ -768,15 +768,13 @@ if (!TOKEN) {
   localStorage.setItem('openclaw_panel_token', TOKEN);
 }
 
-const PROVIDERS = [
-  { id:'google',      label:'Gemini API Key',      placeholder:'AIzaSy...' },
-  { id:'openai',      label:'OpenAI API Key',       placeholder:'sk-proj-...' },
-  { id:'openrouter',  label:'OpenRouter API Key',   placeholder:'sk-or-v1-...' },
-  { id:'deepseek',    label:'DeepSeek API Key',     placeholder:'sk-...' },
-  { id:'modelstudio', label:'ModelStudio API Key',  placeholder:'sk-...' },
-  { id:'anthropic',   label:'Anthropic API Key',    placeholder:'sk-ant-...' },
-  { id:'kieai',       label:'Kie.ai API Key',        placeholder:'19a7...' },
-];
+// Provider labels — fallback ke titleCase jika provider baru muncul
+const PROVIDER_LABELS = {
+  google:'Gemini (Google)', openai:'OpenAI', openrouter:'OpenRouter',
+  deepseek:'DeepSeek', modelstudio:'ModelStudio', anthropic:'Anthropic',
+  kieai:'Kie.ai', sumopod:'SumoPod', gemini:'Gemini Direct',
+};
+function provLabel(id) { return PROVIDER_LABELS[id] || id.charAt(0).toUpperCase()+id.slice(1); }
 
 let configData = {};
 
@@ -822,7 +820,8 @@ async function loadStatus() {
           <span class="status-badge ${badge}">${a.status}</span>
         </div>
         <div class="status-role">${a.role}</div>
-        <div class="status-provider" style="margin-top:8px">${a.provider}</div>
+        <div class="status-provider" style="margin-top:8px;font-weight:700">${a.provider}</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-top:2px;word-break:break-all">${a.model || ''}</div>
         <div class="status-time">Last OK: ${time}</div>
         ${a.fail_count > 0 ? `<div style="font-family:var(--mono);font-size:10px;color:var(--warn);margin-top:4px">Fails: ${a.fail_count}</div>` : ''}
       </div>`;
@@ -852,22 +851,30 @@ async function loadConfig() {
 // ── KEYS ──
 function renderKeys() {
   const container = document.getElementById('key-rows');
-  container.innerHTML = PROVIDERS.map(p => `
+  // Dynamic: baca dari configData.providers (dari API, bukan hardcoded)
+  const provs = configData.providers || [];
+  container.innerHTML = provs.map(p => {
+    const label = provLabel(p.id);
+    const keyVal = configData.keys?.[p.id] || '';
+    const badge = p.only_in_main
+      ? '<span style="color:#f80;font-size:10px"> (belum propagate)</span>'
+      : (p.model_count > 0 ? `<span style="color:#888;font-size:10px"> (${p.model_count} models)</span>` : '');
+    return `
     <div class="key-row">
-      <div class="key-label">${p.label}</div>
+      <div class="key-label">${label}${badge}</div>
       <input class="key-input" id="key-${p.id}" type="password"
-        placeholder="${p.placeholder}" autocomplete="off">
-      <span class="key-status ${configData.keys?.[p.id] ? 'set' : 'empty'}">
-        ${configData.keys?.[p.id] || 'not set'}
+        placeholder="sk-..." autocomplete="off">
+      <span class="key-status ${keyVal ? 'set' : 'empty'}">
+        ${keyVal || 'not set'}
       </span>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 async function saveKeys() {
   const data = {};
   let any = false;
-  PROVIDERS.forEach(p => {
+  (configData.providers || []).forEach(p => {
     const val = document.getElementById('key-'+p.id)?.value?.trim();
     if (val) { data[p.id] = val; any = true; }
   });
@@ -953,44 +960,91 @@ async function saveWebSearch() {
 // ── AGENTS ──
 function renderAgents() {
   const models = configData.models || [];
-  const modelOpts = ['(default)', ...models]
-    .map(m => `<option value="${m}">${m}</option>`).join('');
+  const g = configData.global || {};
+  const modelOpts = models.map(m => `<option value="${m}">${m}</option>`).join('');
+  const agentModelOpts = `<option value="(global)">(use global default)</option>${modelOpts}`;
 
   const grid = document.getElementById('agent-grid');
-  grid.innerHTML = (configData.agents || []).map(a => `
+
+  // ── Global Default row ──
+  let html = `
+    <div class="agent-row" style="border:2px solid var(--accent);background:rgba(100,200,255,0.05)">
+      <div class="agent-header">
+        <span class="agent-id">GLOBAL DEFAULT</span>
+        <span class="agent-role">Berlaku untuk semua agent tanpa override</span>
+      </div>
+      <div class="agent-models">
+        <div class="model-field">
+          <label>Primary Model</label>
+          <select class="model-select" id="global-primary">
+            ${modelOpts}
+          </select>
+        </div>
+        <div class="model-field">
+          <label>Fallback 1</label>
+          <select class="model-select" id="global-fb1">
+            <option value="">(none)</option>${modelOpts}
+          </select>
+        </div>
+        <div class="model-field">
+          <label>Fallback 2</label>
+          <select class="model-select" id="global-fb2">
+            <option value="">(none)</option>${modelOpts}
+          </select>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // ── Per-agent rows ──
+  html += (configData.agents || []).map(a => {
+    const badge = a.is_override
+      ? '<span style="color:#f80;font-size:11px;margin-left:6px">override</span>'
+      : '<span style="color:#4c4;font-size:11px;margin-left:6px">global</span>';
+    return `
     <div class="agent-row">
       <div class="agent-header">
-        <span class="agent-id">${a.id}</span>
+        <span class="agent-id">${a.id}${badge}</span>
         <span class="agent-role">${a.role}</span>
       </div>
       <div class="agent-models">
         <div class="model-field">
           <label>Primary Model</label>
           <select class="model-select" id="${a.id}-primary">
-            ${modelOpts}
+            ${agentModelOpts}
           </select>
         </div>
         <div class="model-field">
           <label>Fallback 1</label>
           <select class="model-select" id="${a.id}-fb1">
-            ${modelOpts}
+            <option value="(global)">(use global default)</option>${modelOpts}
           </select>
         </div>
         <div class="model-field">
           <label>Fallback 2</label>
           <select class="model-select" id="${a.id}-fb2">
-            ${modelOpts}
+            <option value="(global)">(use global default)</option>${modelOpts}
           </select>
         </div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
-  // Set current values
+  grid.innerHTML = html;
+
+  // Set global values
+  setSelectVal('global-primary', g.primary);
+  setSelectVal('global-fb1', g.fallbacks?.[0] || '');
+  setSelectVal('global-fb2', g.fallbacks?.[1] || '');
+
+  // Set per-agent values
   (configData.agents || []).forEach(a => {
-    setSelectVal(`${a.id}-primary`, a.primary);
-    setSelectVal(`${a.id}-fb1`, a.fallbacks?.[0] || '(default)');
-    setSelectVal(`${a.id}-fb2`, a.fallbacks?.[1] || '(default)');
+    if (a.is_override) {
+      setSelectVal(`${a.id}-primary`, a.primary);
+      setSelectVal(`${a.id}-fb1`, a.fallbacks?.[0] || '(global)');
+      setSelectVal(`${a.id}-fb2`, a.fallbacks?.[1] || '(global)');
+    }
+    // Kalau global, biarkan default "(use global default)"
   });
 }
 
@@ -1003,24 +1057,38 @@ function setSelectVal(id, val) {
 }
 
 async function saveAgents() {
-  const agents = (configData.agents || []).map(a => {
+  // Global defaults
+  const gPrimary = document.getElementById('global-primary')?.value || '';
+  const gFb1     = document.getElementById('global-fb1')?.value || '';
+  const gFb2     = document.getElementById('global-fb2')?.value || '';
+  const globalCfg = {
+    primary: gPrimary,
+    fallbacks: [gFb1, gFb2].filter(f => f),
+  };
+
+  // Per-agent overrides (hanya yang bukan "(global)")
+  const agents = [];
+  (configData.agents || []).forEach(a => {
     const primary = document.getElementById(`${a.id}-primary`)?.value;
     const fb1     = document.getElementById(`${a.id}-fb1`)?.value;
     const fb2     = document.getElementById(`${a.id}-fb2`)?.value;
-    return {
-      id: a.id,
-      primary: primary === '(default)' ? '' : primary,
-      fallbacks: [fb1,fb2].filter(f => f && f !== '(default)'),
-    };
+    if (primary && primary !== '(global)') {
+      agents.push({
+        id: a.id,
+        primary: primary,
+        fallbacks: [fb1,fb2].filter(f => f && f !== '(global)'),
+      });
+    }
   });
+
   try {
     const r = await fetch('/api/agents', {
       method:'POST',
       headers:{'Content-Type':'application/json','X-Panel-Token':TOKEN},
-      body: JSON.stringify({agents})
+      body: JSON.stringify({ global: globalCfg, agents })
     });
     const d = await r.json();
-    if (d.ok) showToast('✓ Agent config saved', 'ok');
+    if (d.ok) { showToast('✓ Config saved (global + agents)', 'ok'); await loadConfig(); }
     else showToast('Error: '+(d.error||'unknown'), 'err');
   } catch(e) { showToast('Gagal save agents', 'err'); }
 }
@@ -1362,6 +1430,26 @@ loadStatus();
 loadConfig();
 renderSettings();
 setInterval(loadStatus, 30000);
+
+// ── AUTO-REFRESH CONFIG (polling 10 detik) ──
+// Deteksi perubahan dari luar: Santa, Claude Code, openclaw config set
+let _lastConfigMtime = 0;
+async function pollConfigChange() {
+  try {
+    const r = await fetch('/api/config/hash');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.mtime && d.mtime !== _lastConfigMtime) {
+      if (_lastConfigMtime !== 0) {
+        await loadConfig();
+        showToast('↻ Config diperbarui dari luar', 'ok');
+      }
+      _lastConfigMtime = d.mtime;
+    }
+  } catch(e) {}
+}
+pollConfigChange();
+setInterval(pollConfigChange, 10000);
 </script>
 </body>
 </html>
