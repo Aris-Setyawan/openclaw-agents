@@ -1,11 +1,11 @@
 {
-  "last_check_ts": 1774641809,
-  "last_check_datetime": "2026-03-27 20:03 UTC",
+  "last_check_ts": 1774667009,
+  "last_check_datetime": "2026-03-28 03:03 UTC",
   "providers": {
     "deepseek": {
-      "balance": 1.33,
-      "used_since_last": 0,
-      "hourly_rate": 0
+      "balance": 1.21,
+      "used_since_last": .01,
+      "hourly_rate": .0101
     },
     "openrouter": {
       "usage": 3.05370097,
