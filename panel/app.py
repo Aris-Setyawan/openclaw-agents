@@ -270,16 +270,46 @@ def _mask(val):
     return (val[:10] + "..." + val[-4:]) if len(val) > 14 else "set"
 
 def update_openclaw_json_key(provider, value):
-    """Update hardcoded API key di openclaw.json (misal Google Bearer token)"""
+    """Update API key di SEMUA lokasi openclaw.json untuk provider tertentu."""
     try:
         cfg = read_json(OPENCLAW_CFG, {})
-        cfg_str = json.dumps(cfg)
+        changed = False
+
         if provider == "google":
-            # Cari key lama dari auth-profiles agent1
-            old_key = get_agent_key("agent1", "google")
-            if old_key and old_key != value:
-                cfg_str = cfg_str.replace(old_key, value)
-                write_json(OPENCLAW_CFG, json.loads(cfg_str))
+            providers = cfg.get("models", {}).get("providers", {})
+
+            # 1. providers.google.apiKey + headers
+            if "google" in providers:
+                providers["google"]["apiKey"] = value
+                if "headers" in providers["google"]:
+                    providers["google"]["headers"]["Authorization"] = f"Bearer {value}"
+                changed = True
+
+            # 2. providers.gemini.apiKey (alias)
+            if "gemini" in providers:
+                providers["gemini"]["apiKey"] = value
+                changed = True
+
+            # 3. tools.web.search.gemini.apiKey
+            ws = cfg.get("tools", {}).get("web", {}).get("search", {}).get("gemini", {})
+            if ws is not None:
+                cfg.setdefault("tools", {}).setdefault("web", {}).setdefault("search", {}).setdefault("gemini", {})["apiKey"] = value
+                changed = True
+
+            # 4. auth.profiles.google:default — JANGAN tulis key value di sini!
+            #    Section ini hanya simpan {provider, mode}, bukan nilai key.
+            #    Nilai key ada di per-agent auth-profiles.json (sudah di-propagate via propagate_key)
+
+        else:
+            # Provider lain: update apiKey di models.providers jika ada
+            prov_cfg = cfg.get("models", {}).get("providers", {}).get(provider, {})
+            if prov_cfg and "apiKey" in prov_cfg:
+                prov_cfg["apiKey"] = value
+                changed = True
+
+        if changed:
+            write_json(OPENCLAW_CFG, cfg)
+            print(f"[panel] openclaw.json updated for {provider}")
     except Exception as e:
         print(f"[panel] update_openclaw_json_key error: {e}")
 
