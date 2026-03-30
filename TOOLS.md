@@ -314,9 +314,37 @@ echo "agent3 jawab: $result"
 ### ⚠️ ATURAN WAJIB IMAGE GEN
 1. **PANGGIL SCRIPT LANGSUNG** — jangan delegate ke agent2 (boros token context agent2)
 2. **Default style: SELALU photorealistic** kecuali user eksplisit minta anime/kartun
+3. **JANGAN pakai picker** — picker konflik dgn gateway Telegram polling
 
-### Cara Generate — CUKUP SATU COMMAND:
+### Cara Generate Image — SPECIFY MODEL LANGSUNG:
 ```bash
-/root/.openclaw/workspace/scripts/generate-image.sh "[deskripsi], photorealistic, professional photography, natural lighting, 4K" "[caption]"
+# Format: generate-image.sh "<prompt>" "<caption>" "<chat_id>" "<model>"
+# Models: gemini, flux_pro, flux_max, gpt4o, imagen4, imagen4u, seedream4, gpt15
+
+/root/.openclaw/workspace/scripts/generate-image.sh "deskripsi, photorealistic, 4K" "caption" "613802669" gemini
+/root/.openclaw/workspace/scripts/generate-image.sh "deskripsi, photorealistic, 4K" "caption" "613802669" flux_pro
 ```
-Script otomatis: model picker Telegram → generate → kirim. Output `IMAGE_SENT_OK` = selesai.
+Tanpa model → default `gemini`. Kalau gagal → auto-fallback ke model berikutnya tanpa tanya user.
+
+## Video Generation
+
+### Cara Generate Video — SPECIFY MODEL LANGSUNG:
+```bash
+# Format: generate-video.sh "<prompt>" "<caption>" "<chat_id>" "<model>"
+# Models: veo3f, veo3q, runway, kling3, sora2, hailuo, wan, gveo
+
+/root/.openclaw/workspace/scripts/generate-video.sh "deskripsi video" "caption" "613802669" veo3f
+/root/.openclaw/workspace/scripts/generate-video.sh "deskripsi video" "caption" "613802669" gveo
+```
+Tanpa model → default `veo3f`. Kalau gagal → auto-fallback.
+
+### ⚠️ STATUS PROVIDER VIDEO:
+- **Google Veo** (gveo) — ✅ AKTIF, DEFAULT, gratis pakai Google API key
+- **kie.ai** (veo3f, veo3q, runway, kling3, sora2, hailuo, wan) — ⚠️ BERBAYAR PER ATTEMPT (bahkan gagal tetap kena charge!) — **JANGAN pakai kecuali user eksplisit minta**
+- Default tanpa model → `gveo` (Google Veo, gratis)
+- Fallback chain: gveo → veo3f → veo3q → runway → kling3 → sora2 → hailuo → wan
+
+### ⚠️ JANGAN PAKAI TELEGRAM PICKER:
+Picker (`telegram-model-picker.sh`) menggunakan `getUpdates` yang **KONFLIK** dengan gateway Telegram polling.
+Akibatnya: picker tidak pernah terima callback → timeout → dilaporkan sebagai "user cancel".
+**SOLUSI:** Selalu specify model di parameter ke-4, JANGAN panggil picker.

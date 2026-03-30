@@ -10,12 +10,13 @@
 PROMPT="$1"
 CAPTION="${2:-Video AI}"
 CHAT_ID="${3:-613802669}"
+MODEL_OVERRIDE="$4"
 AUTH_FILE="/root/.openclaw/agents/agent1/agent/auth-profiles.json"
-PICKER="/root/.openclaw/workspace/scripts/telegram-model-picker.sh"
 TG_SEND="/root/.openclaw/workspace/scripts/telegram-send.sh"
 
 if [ -z "$PROMPT" ]; then
-  echo "Usage: generate-video.sh <prompt> [caption]" >&2
+  echo "Usage: generate-video.sh <prompt> [caption] [chat_id] [model]" >&2
+  echo "Models: veo3f veo3q runway kling3 sora2 hailuo wan gveo" >&2
   exit 1
 fi
 
@@ -213,23 +214,30 @@ model_label() {
 }
 
 fallback_of() {
+  # Google Veo first (gratis), kie.ai models terakhir (berbayar per attempt!)
   case "$1" in
+    gveo)   echo "veo3f" ;;
     veo3f)  echo "veo3q" ;;
     veo3q)  echo "runway" ;;
     runway) echo "kling3" ;;
     kling3) echo "sora2" ;;
     sora2)  echo "hailuo" ;;
     hailuo) echo "wan" ;;
-    wan)    echo "gveo" ;;
-    gveo)   echo "" ;;
+    wan)    echo "" ;;
     *)      echo "gveo" ;;
   esac
 }
 
 # ── MAIN ───────────────────────────────────────────────────────────────────
-echo "[picker] Menunggu pilihan model dari Telegram..." >&2
-CHOSEN_MODEL=$(bash "$PICKER" video "$PROMPT" "$CHAT_ID")
-echo "[picker] Model dipilih: $CHOSEN_MODEL" >&2
+# Bypass picker jika model sudah di-specify (mencegah konflik getUpdates dgn gateway)
+if [ -n "$MODEL_OVERRIDE" ]; then
+  CHOSEN_MODEL="$MODEL_OVERRIDE"
+  echo "[direct] Model: $CHOSEN_MODEL (bypass picker)" >&2
+else
+  # Default: Google Veo (gratis). kie.ai models berbayar per attempt!
+  CHOSEN_MODEL="gveo"
+  echo "[default] Model: gveo — Google Veo (gratis, bypass kie.ai)" >&2
+fi
 
 CURRENT_MODEL="$CHOSEN_MODEL"
 while true; do
@@ -255,19 +263,9 @@ _Model: $LABEL_" "$CHAT_ID"
     exit 1
   fi
 
+  # Auto-fallback tanpa confirm (picker konflik dgn gateway polling)
   NEXT_LABEL=$(model_label "$NEXT")
-  CONFIRM=$(bash "$PICKER" confirm "Model *$(model_label $CURRENT_MODEL)* gagal.
-
-Mau coba fallback ke *$NEXT_LABEL*?" "$CHAT_ID")
-
-  if [ "$CONFIRM" != "yes" ]; then
-    BOT_TOKEN=$(python3 -c "import json; d=json.load(open('/root/.openclaw/openclaw.json')); print(d['channels']['telegram']['botToken'])" 2>/dev/null)
-    curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
-      -H "Content-Type: application/json" \
-      -d "{\"chat_id\":\"$CHAT_ID\",\"text\":\"❌ Generate video dibatalkan.\"}" > /dev/null
-    echo "Dibatalkan user" >&2
-    exit 1
-  fi
+  echo "[fallback] $(model_label $CURRENT_MODEL) gagal → coba $NEXT_LABEL" >&2
 
   CURRENT_MODEL="$NEXT"
 done

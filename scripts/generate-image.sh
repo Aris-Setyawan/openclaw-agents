@@ -11,12 +11,12 @@
 PROMPT="$1"
 CAPTION="${2:-$1}"
 CHAT_ID="${3:-613802669}"
+MODEL_OVERRIDE="$4"
 AUTH_FILE="/root/.openclaw/agents/agent1/agent/auth-profiles.json"
-PICKER="/root/.openclaw/workspace/scripts/telegram-model-picker.sh"
 TG_SEND="/root/.openclaw/workspace/scripts/telegram-send.sh"
 
 if [ -z "$PROMPT" ]; then
-  echo "Usage: generate-image.sh <prompt> [caption]" >&2
+  echo "Usage: generate-image.sh <prompt> [caption] [chat_id] [model]" >&2
   exit 1
 fi
 
@@ -232,12 +232,16 @@ fallback_of() {
 
 # ── MAIN ───────────────────────────────────────────────────────────────────
 
-# 1. Tanya model via Telegram
-echo "[picker] Menunggu pilihan model dari Telegram..." >&2
-CHOSEN_MODEL=$(bash "$PICKER" image "$PROMPT" "$CHAT_ID")
-echo "[picker] Model dipilih: $CHOSEN_MODEL" >&2
+# 1. Pilih model — bypass picker (konflik getUpdates dgn gateway)
+if [ -n "$MODEL_OVERRIDE" ]; then
+  CHOSEN_MODEL="$MODEL_OVERRIDE"
+  echo "[direct] Model: $CHOSEN_MODEL (bypass picker)" >&2
+else
+  CHOSEN_MODEL="gemini"
+  echo "[default] Model: gemini (no picker — gateway conflict)" >&2
+fi
 
-# 2. Generate dengan model pilihan + konfirmasi fallback
+# 2. Generate dengan model pilihan + auto-fallback
 CURRENT_MODEL="$CHOSEN_MODEL"
 while true; do
   LABEL=$(model_label "$CURRENT_MODEL")
@@ -265,19 +269,9 @@ _Model: $LABEL_" "$CHAT_ID"
     exit 1
   fi
 
+  # Auto-fallback tanpa confirm (picker konflik dgn gateway polling)
   NEXT_LABEL=$(model_label "$NEXT")
-  CONFIRM=$(bash "$PICKER" confirm "Model *$(model_label $CURRENT_MODEL)* gagal.
-
-Mau coba fallback ke *$NEXT_LABEL*?" "$CHAT_ID")
-
-  if [ "$CONFIRM" != "yes" ]; then
-    BOT_TOKEN=$(python3 -c "import json; d=json.load(open('/root/.openclaw/openclaw.json')); print(d['channels']['telegram']['botToken'])" 2>/dev/null)
-    curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
-      -H "Content-Type: application/json" \
-      -d "{\"chat_id\":\"$CHAT_ID\",\"text\":\"❌ Generate foto dibatalkan.\",\"parse_mode\":\"Markdown\"}" > /dev/null
-    echo "Dibatalkan user" >&2
-    exit 1
-  fi
+  echo "[fallback] $(model_label $CURRENT_MODEL) gagal → coba $NEXT_LABEL" >&2
 
   CURRENT_MODEL="$NEXT"
 done
