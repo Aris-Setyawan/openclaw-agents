@@ -99,6 +99,25 @@ openclaw gateway status    # ← PAKAI INI! Tampilkan PID, state, RPC probe
 
 ## Ganti Model Agent — ATURAN WAJIB
 
+### ⚠️ TANYAKAN PROVIDER DULU — WAJIB!
+Satu model bisa tersedia di BANYAK provider. Contoh:
+- **DeepSeek R1** ada di: `deepseek/` (langsung), `sumopod/`, `openrouter/`, `kie.ai`
+- **GPT-5** ada di: `openai/` (langsung), `sumopod/`, `openrouter/`
+- **Gemini** ada di: `google/` (langsung), `sumopod/`, `openrouter/`
+
+**SEBELUM assign model ke agent, SELALU tanyakan user:**
+> "Model [X] tersedia di beberapa provider: [daftar]. Mau ambil dari provider mana?"
+
+**Kenapa penting:**
+- Harga beda tiap provider (sumopod lebih murah dari langsung, atau sebaliknya)
+- Salah routing = token terpakai di provider yang tidak diinginkan
+- Contoh kasus: `deepseek/deepseek-chat` makan saldo DeepSeek langsung, padahal user mau lewat `sumopod/deepseek-chat`
+
+**Format model ID = `provider/model`:**
+- `sumopod/deepseek-v3-2` → lewat Sumopod
+- `deepseek/deepseek-chat` → langsung ke DeepSeek API
+- `openrouter/deepseek/deepseek-r1` → lewat OpenRouter
+
 ### ⚠️ DILARANG KERAS:
 ```bash
 # JANGAN PERNAH PAKAI INI — mengubah SEMUA agent sekaligus!
