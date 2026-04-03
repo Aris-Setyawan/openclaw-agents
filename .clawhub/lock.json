@@ -8,6 +8,14 @@
     "summarize": {
       "version": "1.0.0",
       "installedAt": 1774420081958
+    },
+    "best-image-generation": {
+      "version": "1.0.2",
+      "installedAt": 1775236322561
+    },
+    "wan-image-video-generation-editting": {
+      "version": "1.0.2",
+      "installedAt": 1775237222899
     }
   }
 }
