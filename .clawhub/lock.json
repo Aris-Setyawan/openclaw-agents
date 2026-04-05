@@ -16,6 +16,10 @@
     "wan-image-video-generation-editting": {
       "version": "1.0.2",
       "installedAt": 1775237222899
+    },
+    "token-budget-monitor": {
+      "version": "1.0.0",
+      "installedAt": 1775393284192
     }
   }
 }

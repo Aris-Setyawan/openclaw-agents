@@ -6,7 +6,7 @@ import argparse
 import base64
 import mimetypes
 
-BASE_URL = "https://dashscope.aliyuncs.com"
+BASE_URL = "https://dashscope-intl.aliyuncs.com"
 
 
 def get_api_key():
