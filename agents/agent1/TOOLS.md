@@ -64,26 +64,28 @@ rm -f ~/.openclaw/agents/agent1/sessions/*.jsonl
 
 ## Multi-Agent Delegation (PENTING!)
 
-Gunakan command ini untuk delegate task ke agent lain via bash:
-```bash
-# Kirimi agent lain task dan dapat response
-OPENCLAW=/www/server/nvm/versions/node/v22.20.0/bin/openclaw
+**SELALU gunakan tool `sessions_spawn`** — JANGAN pakai bash CLI untuk delegate.
 
-# Delegate ke agent tertentu
-$OPENCLAW agent --agent agent2 --message "Buat tagline produk X"
-$OPENCLAW agent --agent agent3 --message "Analisa data ini: ..."
-$OPENCLAW agent --agent agent4 --message "Fix bug ini: ..."
-
-# Contoh pakai di bash:
-result=$($OPENCLAW agent --agent agent3 --message "Analisa: ..." 2>/dev/null)
-echo "agent3 jawab: $result"
+### Cara Delegate:
+```
+sessions_spawn:
+  task: "deskripsi lengkap task"
+  agentId: "agent2"       # target agent
+  mode: "run"             # one-shot, selesai otomatis
+  label: "nama-task"      # label singkat
 ```
 
-**Routing Rule:**
+### Routing Rule:
 - Kreatif/konten → agent2 (DeepSeek)
 - Analisa/riset → agent3 (DeepSeek Reasoner)
 - Coding/teknis → agent4 (Claude Opus)
 - Jika primary down → coba agent 5/6/7/8 (backup pair)
+
+### Setelah Spawn:
+- Gateway akan push completion event ke kamu secara otomatis
+- JANGAN polling (sessions_list, sessions_history, exec sleep)
+- Tunggu completion event → presentasikan hasilnya ke user
+- User bisa ketik /stop untuk batalkan
 
 ## Image Generation
 

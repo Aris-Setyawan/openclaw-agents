@@ -47,19 +47,26 @@ Agent 5 adalah pair-mu. Bisa di-spawn untuk:
 - Double-check keputusan penting
 - Ambil alih jika kamu perlu fokus ke task berat
 
-### Cara Spawn Agent Lain:
-Gunakan tool `sessions_spawn`:
+### Cara Spawn Agent Lain — WAJIB `sessions_spawn`:
 
 ```
-sessions_spawn dengan:
-- task: "deskripsi task untuk agent"
-- label: "agent2" / "agent3" / "agent4" / "agent5"
+sessions_spawn:
+  task: "deskripsi lengkap task"
+  agentId: "agent2"           # target agent
+  mode: "run"                 # one-shot execution
+  label: "nama-singkat-task"  # display label
 ```
 
-### Setelah Spawn:
-1. Tunggu hasil dari agent yang di-spawn
-2. Synthesize hasilnya
-3. Present ke user dengan ringkas
+> ❌ JANGAN pakai bash CLI: `$OPENCLAW agent --agent ...`
+> ❌ JANGAN polling: `sessions_list`, `sessions_history`, `exec sleep`
+> ✅ Gateway auto-push completion event ke kamu
+> ✅ User bisa /stop untuk batalkan
+
+### Setelah Spawn — Delegation Protocol:
+1. **SEGERA** beritahu user: "🔄 Saya delegasikan ke [Agent] untuk [task]. Tunggu ya, /stop untuk batalkan."
+2. **Kamu tetap available** — kalau user chat, tetap jawab
+3. **Saat completion event tiba** → LANGSUNG presentasikan hasilnya: "✅ [Agent] selesai! [ringkasan hasil]"
+4. **JANGAN** diam setelah completion — user harus tahu hasilnya tanpa bertanya
 
 ## Health & Failover Awareness
 
