@@ -442,6 +442,365 @@ def api_websearch():
     write_json(OPENCLAW_CFG, cfg)
     return jsonify({"ok": True})
 
+# ─────────────────────────────────────────────
+# PROVIDER CRUD + TEMPLATES
+# ─────────────────────────────────────────────
+
+PROVIDER_TEMPLATES = {
+    "openai": {
+        "baseUrl": "https://api.openai.com/v1",
+        "api": "openai-completions",
+        "models": [
+            {"id": "gpt-4.1", "name": "GPT-4.1", "reasoning": False,
+             "input": ["text","image"], "contextWindow": 1047576, "maxTokens": 32768,
+             "cost": {"input": 2, "output": 8, "cacheRead": 0.5, "cacheWrite": 0}},
+            {"id": "gpt-4.1-mini", "name": "GPT-4.1 Mini", "reasoning": False,
+             "input": ["text","image"], "contextWindow": 1047576, "maxTokens": 16384,
+             "cost": {"input": 0.4, "output": 1.6, "cacheRead": 0.1, "cacheWrite": 0}},
+            {"id": "o3-mini", "name": "o3-mini", "reasoning": True,
+             "input": ["text"], "contextWindow": 200000, "maxTokens": 100000,
+             "cost": {"input": 1.1, "output": 4.4, "cacheRead": 0.275, "cacheWrite": 0}},
+        ],
+    },
+    "anthropic": {
+        "baseUrl": "https://api.anthropic.com/v1",
+        "api": "anthropic",
+        "models": [
+            {"id": "claude-opus-4-6", "name": "Claude Opus 4.6", "reasoning": True,
+             "input": ["text","image"], "contextWindow": 200000, "maxTokens": 32000,
+             "cost": {"input": 15, "output": 75, "cacheRead": 1.5, "cacheWrite": 3.75}},
+            {"id": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6", "reasoning": True,
+             "input": ["text","image"], "contextWindow": 200000, "maxTokens": 16000,
+             "cost": {"input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 0.75}},
+            {"id": "claude-haiku-4-5", "name": "Claude Haiku 4.5", "reasoning": False,
+             "input": ["text","image"], "contextWindow": 200000, "maxTokens": 8192,
+             "cost": {"input": 0.8, "output": 4, "cacheRead": 0.08, "cacheWrite": 0.2}},
+        ],
+    },
+    "deepseek": {
+        "baseUrl": "https://api.deepseek.com/v1",
+        "api": "openai-completions",
+        "models": [
+            {"id": "deepseek-chat", "name": "DeepSeek V3", "reasoning": False,
+             "input": ["text"], "contextWindow": 65536, "maxTokens": 8192,
+             "cost": {"input": 0.27, "output": 1.1, "cacheRead": 0.07, "cacheWrite": 0}},
+            {"id": "deepseek-reasoner", "name": "DeepSeek R1", "reasoning": True,
+             "input": ["text"], "contextWindow": 65536, "maxTokens": 8192,
+             "cost": {"input": 0.55, "output": 2.19, "cacheRead": 0.14, "cacheWrite": 0}},
+        ],
+    },
+    "google": {
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
+        "api": "gemini",
+        "models": [
+            {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "reasoning": True,
+             "input": ["text","image"], "contextWindow": 1048576, "maxTokens": 65536,
+             "cost": {"input": 0.15, "output": 0.6, "cacheRead": 0.0375, "cacheWrite": 0}},
+            {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "reasoning": True,
+             "input": ["text","image"], "contextWindow": 1048576, "maxTokens": 65536,
+             "cost": {"input": 1.25, "output": 10, "cacheRead": 0.3125, "cacheWrite": 0}},
+        ],
+    },
+    "modelstudio": {
+        "baseUrl": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        "api": "openai-completions",
+        "models": [
+            {"id": "qwen3.5-plus", "name": "Qwen 3.5 Plus", "reasoning": False,
+             "input": ["text","image"], "contextWindow": 1000000, "maxTokens": 65536,
+             "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0}},
+            {"id": "qwen3-max", "name": "Qwen 3 Max", "reasoning": False,
+             "input": ["text"], "contextWindow": 262144, "maxTokens": 65536,
+             "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0}},
+        ],
+    },
+    "openrouter": {
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "api": "openai-completions",
+        "models": [
+            {"id": "google/gemini-2.5-flash", "name": "Gemini 2.5 Flash (OR)", "reasoning": True,
+             "input": ["text","image"], "contextWindow": 1048576, "maxTokens": 65536,
+             "cost": {"input": 0.15, "output": 0.6, "cacheRead": 0, "cacheWrite": 0}},
+        ],
+    },
+}
+
+@app.route("/api/providers/templates")
+def api_provider_templates():
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    return jsonify(PROVIDER_TEMPLATES)
+
+@app.route("/api/providers", methods=["GET"])
+def api_providers_list():
+    """List providers with full model details from openclaw.json."""
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    cfg = read_json(OPENCLAW_CFG, {})
+    providers = cfg.get("models", {}).get("providers", {})
+    result = []
+    for pname, pdata in sorted(providers.items()):
+        result.append({
+            "id": pname,
+            "baseUrl": pdata.get("baseUrl", ""),
+            "api": pdata.get("api", ""),
+            "model_count": len(pdata.get("models", [])),
+            "models": pdata.get("models", []),
+            "headers": pdata.get("headers", {}),
+            "apiKey": bool(pdata.get("apiKey")),
+        })
+    return jsonify(result)
+
+@app.route("/api/providers/add", methods=["POST"])
+def api_providers_add():
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    data = request.json or {}
+    pid = data.get("id", "").strip().lower()
+    if not pid: return jsonify({"error": "Provider ID required"}), 400
+
+    cfg = read_json(OPENCLAW_CFG, {})
+    providers = cfg.setdefault("models", {}).setdefault("providers", {})
+    if pid in providers:
+        return jsonify({"error": f"Provider '{pid}' already exists"}), 409
+
+    providers[pid] = {
+        "baseUrl": data.get("baseUrl", ""),
+        "api": data.get("api", "openai-completions"),
+        "models": data.get("models", []),
+    }
+    if data.get("headers"):
+        providers[pid]["headers"] = data["headers"]
+    if data.get("apiKey"):
+        providers[pid]["apiKey"] = data["apiKey"]
+
+    write_json(OPENCLAW_CFG, cfg)
+    return jsonify({"ok": True, "id": pid})
+
+@app.route("/api/providers/edit", methods=["POST"])
+def api_providers_edit():
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    data = request.json or {}
+    pid = data.get("id", "").strip()
+    if not pid: return jsonify({"error": "Provider ID required"}), 400
+
+    cfg = read_json(OPENCLAW_CFG, {})
+    providers = cfg.get("models", {}).get("providers", {})
+    if pid not in providers:
+        return jsonify({"error": f"Provider '{pid}' not found"}), 404
+
+    if "baseUrl" in data:
+        providers[pid]["baseUrl"] = data["baseUrl"]
+    if "api" in data:
+        providers[pid]["api"] = data["api"]
+    if "models" in data:
+        providers[pid]["models"] = data["models"]
+    if "headers" in data:
+        providers[pid]["headers"] = data["headers"]
+    if "apiKey" in data:
+        providers[pid]["apiKey"] = data["apiKey"]
+
+    write_json(OPENCLAW_CFG, cfg)
+    return jsonify({"ok": True})
+
+@app.route("/api/providers/delete", methods=["POST"])
+def api_providers_delete():
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    data = request.json or {}
+    pid = data.get("id", "").strip()
+    if not pid: return jsonify({"error": "Provider ID required"}), 400
+
+    cfg = read_json(OPENCLAW_CFG, {})
+    providers = cfg.get("models", {}).get("providers", {})
+    if pid not in providers:
+        return jsonify({"error": f"Provider '{pid}' not found"}), 404
+
+    del providers[pid]
+    write_json(OPENCLAW_CFG, cfg)
+    return jsonify({"ok": True})
+
+# ─────────────────────────────────────────────
+# SCRIPTS + AGENT DOCS + BINDINGS
+# ─────────────────────────────────────────────
+
+SCRIPTS_DIR = "/root/openclaw/scripts"
+
+@app.route("/api/scripts", methods=["GET"])
+def api_scripts_list():
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    scripts = []
+    for f in sorted(glob.glob(f"{SCRIPTS_DIR}/*")):
+        name = os.path.basename(f)
+        try:
+            stat = os.stat(f)
+            scripts.append({
+                "name": name,
+                "size": stat.st_size,
+                "executable": os.access(f, os.X_OK),
+                "modified": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+            })
+        except OSError:
+            pass
+    return jsonify(scripts)
+
+@app.route("/api/scripts/run", methods=["POST"])
+def api_scripts_run():
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    data = request.json or {}
+    name = data.get("name", "").strip()
+    if not name or "/" in name or ".." in name:
+        return jsonify({"error": "Invalid script name"}), 400
+
+    path = os.path.join(SCRIPTS_DIR, name)
+    if not os.path.isfile(path):
+        return jsonify({"error": f"Script '{name}' not found"}), 404
+
+    try:
+        result = subprocess.run(
+            ["bash", path], capture_output=True, text=True, timeout=30,
+            cwd=SCRIPTS_DIR
+        )
+        return jsonify({
+            "ok": True,
+            "stdout": result.stdout[-2000:] if len(result.stdout) > 2000 else result.stdout,
+            "stderr": result.stderr[-1000:] if len(result.stderr) > 1000 else result.stderr,
+            "returncode": result.returncode,
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Script timeout (30s)"}), 504
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+AGENT_DOC_FILES = ["SOUL.md", "TOOLS.md", "IDENTITY.md", "MEMORY.md", "AGENTS.md"]
+
+@app.route("/api/agent-docs", methods=["GET"])
+def api_agent_docs():
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    agent = request.args.get("agent", "agent1")
+    if agent not in ALL_AGENTS:
+        return jsonify({"error": "Invalid agent"}), 400
+
+    agent_dir = f"{BASE}/agents/{agent}/agent"
+    docs = {}
+    for fname in AGENT_DOC_FILES:
+        fpath = os.path.join(agent_dir, fname)
+        try:
+            docs[fname] = open(fpath).read()
+        except FileNotFoundError:
+            docs[fname] = None
+    return jsonify({"agent": agent, "docs": docs})
+
+@app.route("/api/agent-docs", methods=["POST"])
+def api_agent_docs_save():
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    data = request.json or {}
+    agent = data.get("agent", "")
+    if agent not in ALL_AGENTS:
+        return jsonify({"error": "Invalid agent"}), 400
+
+    agent_dir = f"{BASE}/agents/{agent}/agent"
+    saved = []
+    for fname, content in data.get("docs", {}).items():
+        if fname not in AGENT_DOC_FILES:
+            continue
+        fpath = os.path.join(agent_dir, fname)
+        try:
+            with open(fpath, "w") as f:
+                f.write(content)
+            saved.append(fname)
+        except Exception as e:
+            return jsonify({"error": f"Failed to save {fname}: {e}"}), 500
+    return jsonify({"ok": True, "saved": saved})
+
+@app.route("/api/bindings")
+def api_bindings():
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    cfg = read_json(OPENCLAW_CFG, {})
+    bindings = cfg.get("agents", {}).get("bindings", {})
+    return jsonify(bindings)
+
+# ─────────────────────────────────────────────
+# SYSTEM ACTIONS
+# ─────────────────────────────────────────────
+
+@app.route("/api/health-check", methods=["POST"])
+def api_health_check():
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    try:
+        result = subprocess.run(
+            ["/root/openclaw/start_failover.sh", "once"],
+            capture_output=True, text=True, timeout=60,
+            cwd="/root/openclaw"
+        )
+        health = read_json(HEALTH_FILE, {})
+        return jsonify({
+            "ok": True,
+            "stdout": result.stdout[-2000:],
+            "stderr": result.stderr[-500:],
+            "health": health,
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Health check timeout (60s)"}), 504
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/reload", methods=["POST"])
+def api_reload():
+    """Reload config — re-read openclaw.json tanpa restart gateway."""
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    try:
+        cfg = read_json(OPENCLAW_CFG, {})
+        agent_count = len(cfg.get("agents", {}).get("list", []))
+        provider_count = len(cfg.get("models", {}).get("providers", {}))
+        return jsonify({
+            "ok": True,
+            "agents": agent_count,
+            "providers": provider_count,
+            "message": "Config reloaded successfully",
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/gateway/restart", methods=["POST"])
+def api_gateway_restart():
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    try:
+        result = subprocess.run(
+            ["systemctl", "restart", "openclaw-gateway"],
+            capture_output=True, text=True, timeout=15
+        )
+        if result.returncode != 0:
+            return jsonify({"error": f"Restart failed: {result.stderr}"}), 500
+        # Check status after restart
+        status = subprocess.run(
+            ["systemctl", "is-active", "openclaw-gateway"],
+            capture_output=True, text=True, timeout=5
+        )
+        return jsonify({
+            "ok": True,
+            "status": status.stdout.strip(),
+            "message": "Gateway restarted successfully",
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Restart timeout"}), 504
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/gateway/status")
+def api_gateway_status():
+    if not auth(request): return jsonify({"error":"unauthorized"}), 401
+    try:
+        result = subprocess.run(
+            ["systemctl", "status", "openclaw-gateway"],
+            capture_output=True, text=True, timeout=5
+        )
+        active = subprocess.run(
+            ["systemctl", "is-active", "openclaw-gateway"],
+            capture_output=True, text=True, timeout=5
+        )
+        return jsonify({
+            "status": active.stdout.strip(),
+            "details": result.stdout[-1500:],
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/config/hash")
 def api_config_hash():
     """Lightweight endpoint untuk browser polling — cek apakah config berubah.

@@ -426,17 +426,74 @@ body {
 .toast.ok { border-color: var(--accent); color: var(--accent); }
 .toast.err { border-color: var(--danger); color: var(--danger); }
 
+/* ── Mobile hamburger ── */
+.mobile-header {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  z-index: 200;
+  align-items: center;
+  justify-content: space-between;
+}
+.mobile-header .brand { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+.hamburger {
+  background: none; border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text); font-size: 20px; padding: 4px 10px; cursor: pointer;
+}
+.mobile-drawer {
+  display: none;
+  position: fixed; top: 44px; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.7);
+  z-index: 190;
+}
+.mobile-drawer.open { display: block; }
+.mobile-drawer-inner {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.mobile-drawer .nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 20px; cursor: pointer;
+  color: var(--text-dim); font-size: 14px; font-weight: 500;
+  border-left: 3px solid transparent;
+}
+.mobile-drawer .nav-item.active {
+  color: var(--accent); border-left-color: var(--accent);
+  background: rgba(0,212,170,.06);
+}
+
 @media (max-width: 768px) {
   .sidebar { display: none; }
+  .mobile-header { display: flex; }
+  body { padding-top: 44px; }
+  .main { width: 100%; }
+  .topbar { padding: 12px 16px; position: static; }
   .content { padding: 16px; }
   .agent-models { grid-template-columns: 1fr; }
   .creative-grid { grid-template-columns: 1fr; }
-  .key-row { grid-template-columns: 1fr auto; }
-  .key-label { display: none; }
+  .key-row { grid-template-columns: 1fr; gap: 6px; }
+  .key-label { font-size: 11px; }
+  .status-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .topbar .status-badge { font-size: 9px; }
+  .topbar h1 { font-size: 14px; }
 }
 </style>
 </head>
 <body>
+
+<!-- Mobile Header -->
+<div class="mobile-header">
+  <span class="brand">OpenClaw</span>
+  <button class="hamburger" id="hamburger-btn" onclick="toggleMobileNav()">☰</button>
+</div>
+<div class="mobile-drawer" id="mobile-drawer" onclick="if(event.target===this)closeMobileNav()">
+  <div class="mobile-drawer-inner" id="mobile-nav-items"></div>
+</div>
 
 <!-- Sidebar -->
 <aside class="sidebar">
@@ -459,6 +516,15 @@ body {
     </div>
     <div class="nav-item" data-tab="usage">
       <span class="icon">📊</span> Usage & Saldo
+    </div>
+    <div class="nav-item" data-tab="providers">
+      <span class="icon">⬡</span> Providers
+    </div>
+    <div class="nav-item" data-tab="scripts">
+      <span class="icon">⌘</span> Scripts & Docs
+    </div>
+    <div class="nav-item" data-tab="system">
+      <span class="icon">⏻</span> System Actions
     </div>
     <div class="nav-item" data-tab="settings">
       <span class="icon">⚙</span> Settings
@@ -754,6 +820,168 @@ body {
       </div>
     </section>
 
+    <!-- ── PROVIDERS ── -->
+    <section class="section" id="tab-providers">
+      <div class="section-title">Provider Management</div>
+
+      <!-- Current providers table -->
+      <div class="card">
+        <div class="card-title">Registered Providers</div>
+        <div style="overflow-x:auto;margin-top:8px">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--mono)">
+            <thead>
+              <tr style="color:var(--text-dim);border-bottom:1px solid var(--border)">
+                <th style="text-align:left;padding:8px 6px">Provider</th>
+                <th style="text-align:left;padding:8px 6px">Base URL</th>
+                <th style="text-align:left;padding:8px 6px">API Type</th>
+                <th style="text-align:center;padding:8px 6px">Models</th>
+                <th style="text-align:center;padding:8px 6px">Key</th>
+                <th style="text-align:center;padding:8px 6px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="prov-table-body">
+              <tr><td colspan="6" style="color:var(--text-dim);padding:16px;text-align:center">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Add from template -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Add Provider from Template</div>
+        <div id="prov-templates" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:12px">
+        </div>
+      </div>
+
+      <!-- Add custom -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Add Custom Provider</div>
+        <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:10px;margin-top:12px">
+          <div class="field-group">
+            <label>Provider ID</label>
+            <input id="prov-add-id" class="key-input" placeholder="e.g. groq">
+          </div>
+          <div class="field-group">
+            <label>Base URL</label>
+            <input id="prov-add-url" class="key-input" placeholder="https://api.groq.com/v1">
+          </div>
+          <div class="field-group">
+            <label>API Type</label>
+            <select id="prov-add-api" class="model-select">
+              <option value="openai-completions">OpenAI Compatible</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="gemini">Gemini Native</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="addCustomProvider()">Add Provider</button>
+      </div>
+
+      <!-- Provider detail modal (hidden) -->
+      <div id="prov-detail-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:100;justify-content:center;align-items:center">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:90%;max-width:700px;max-height:85vh;overflow-y:auto">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div class="card-title" id="prov-modal-title">Provider Detail</div>
+            <button class="btn btn-ghost btn-sm" onclick="closeProvModal()">Close</button>
+          </div>
+          <div id="prov-modal-body"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCRIPTS & DOCS ── -->
+    <section class="section" id="tab-scripts">
+      <div class="section-title">Scripts & Agent Docs</div>
+
+      <!-- Scripts list -->
+      <div class="card">
+        <div class="card-title">Available Scripts</div>
+        <div style="overflow-x:auto;margin-top:8px">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:var(--mono)">
+            <thead>
+              <tr style="color:var(--text-dim);border-bottom:1px solid var(--border)">
+                <th style="text-align:left;padding:8px 6px">Script</th>
+                <th style="text-align:right;padding:8px 6px">Size</th>
+                <th style="text-align:center;padding:8px 6px">Exec</th>
+                <th style="text-align:left;padding:8px 6px">Modified</th>
+                <th style="text-align:center;padding:8px 6px">Run</th>
+              </tr>
+            </thead>
+            <tbody id="scripts-table-body">
+              <tr><td colspan="5" style="color:var(--text-dim);padding:16px;text-align:center">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Script output -->
+      <div class="card" style="margin-top:16px;display:none" id="script-output-card">
+        <div class="card-title">Script Output — <span id="script-output-name"></span></div>
+        <pre id="script-output" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;max-height:300px;overflow:auto;white-space:pre-wrap;color:var(--text)"></pre>
+      </div>
+
+      <!-- Agent Docs -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Agent Documents</div>
+        <div style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap">
+          <select id="doc-agent-select" class="model-select" style="width:160px" onchange="loadAgentDocs()">
+            <option value="agent1">agent1</option>
+            <option value="agent2">agent2</option>
+            <option value="agent3">agent3</option>
+            <option value="agent4">agent4</option>
+            <option value="agent5">agent5</option>
+            <option value="agent6">agent6</option>
+            <option value="agent7">agent7</option>
+            <option value="agent8">agent8</option>
+            <option value="main">main</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="loadAgentDocs()">Load Docs</button>
+        </div>
+        <div id="agent-docs-container"></div>
+      </div>
+    </section>
+
+    <!-- ── SYSTEM ACTIONS ── -->
+    <section class="section" id="tab-system">
+      <div class="section-title">System Actions</div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+        <!-- Health Check -->
+        <div class="card" style="text-align:center">
+          <div style="font-size:28px;margin-bottom:8px">♡</div>
+          <div class="card-title" style="text-align:center">Health Check</div>
+          <p style="font-size:12px;color:var(--text-dim);margin:8px 0 16px">Run one-time health check on all providers and agents</p>
+          <button class="btn btn-primary" id="btn-health-check" onclick="runHealthCheck()">Run Health Check</button>
+          <div id="health-check-result" style="margin-top:12px;font-size:12px;font-family:var(--mono);text-align:left;display:none"></div>
+        </div>
+
+        <!-- Config Reload -->
+        <div class="card" style="text-align:center">
+          <div style="font-size:28px;margin-bottom:8px">↻</div>
+          <div class="card-title" style="text-align:center">Reload Config</div>
+          <p style="font-size:12px;color:var(--text-dim);margin:8px 0 16px">Re-read openclaw.json and refresh all cached config</p>
+          <button class="btn btn-primary" id="btn-reload" onclick="reloadConfig()">Reload Config</button>
+          <div id="reload-result" style="margin-top:12px;font-size:12px;font-family:var(--mono);text-align:left;display:none"></div>
+        </div>
+
+        <!-- Gateway Restart -->
+        <div class="card" style="text-align:center">
+          <div style="font-size:28px;margin-bottom:8px">⏻</div>
+          <div class="card-title" style="text-align:center">Restart Gateway</div>
+          <p style="font-size:12px;color:var(--text-dim);margin:8px 0 16px">Restart openclaw-gateway systemd service (brief downtime)</p>
+          <button class="btn btn-ghost" id="btn-gateway-restart" onclick="restartGateway()" style="border-color:var(--danger);color:var(--danger)">Restart Gateway</button>
+          <div id="gateway-result" style="margin-top:12px;font-size:12px;font-family:var(--mono);text-align:left;display:none"></div>
+        </div>
+      </div>
+
+      <!-- Gateway Status -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Gateway Status</div>
+        <pre id="gateway-status" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;max-height:200px;overflow:auto;white-space:pre-wrap;color:var(--text)">Loading...</pre>
+        <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="loadGatewayStatus()">Refresh Status</button>
+      </div>
+    </section>
+
   </div><!-- /content -->
 </div><!-- /main -->
 
@@ -786,15 +1014,51 @@ function showToast(msg, type='ok') {
 }
 
 // ── NAV ──
-document.querySelectorAll('.nav-item').forEach(el => {
-  el.addEventListener('click', () => {
-    document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
-    document.querySelectorAll('.section').forEach(e => e.classList.remove('active'));
-    el.classList.add('active');
-    document.getElementById('tab-'+el.dataset.tab).classList.add('active');
-    document.getElementById('page-title').textContent = el.textContent.trim();
-  });
+function switchTab(tab, label) {
+  document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(e => e.classList.remove('active'));
+  document.querySelectorAll(`.nav-item[data-tab="${tab}"]`).forEach(e => e.classList.add('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('page-title').textContent = label || tab;
+  closeMobileNav();
+}
+
+document.querySelectorAll('.sidebar .nav-item').forEach(el => {
+  el.addEventListener('click', () => switchTab(el.dataset.tab, el.textContent.trim()));
 });
+
+// ── MOBILE NAV ──
+function buildMobileNav() {
+  const items = document.querySelectorAll('.sidebar .nav-item');
+  const container = document.getElementById('mobile-nav-items');
+  container.innerHTML = '';
+  items.forEach(el => {
+    const div = document.createElement('div');
+    div.className = 'nav-item' + (el.classList.contains('active') ? ' active' : '');
+    div.dataset.tab = el.dataset.tab;
+    div.innerHTML = el.innerHTML;
+    div.addEventListener('click', () => {
+      switchTab(el.dataset.tab, el.textContent.trim());
+      container.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+      div.classList.add('active');
+    });
+    container.appendChild(div);
+  });
+}
+
+function toggleMobileNav() {
+  const drawer = document.getElementById('mobile-drawer');
+  if (drawer.classList.contains('open')) {
+    closeMobileNav();
+  } else {
+    buildMobileNav();
+    drawer.classList.add('open');
+  }
+}
+
+function closeMobileNav() {
+  document.getElementById('mobile-drawer').classList.remove('open');
+}
 
 // ── STATUS ──
 async function loadStatus() {
@@ -1418,10 +1682,348 @@ async function loadUsage() {
   }
 }
 
-// Auto-load usage saat tab dibuka
+// ── PROVIDERS ──────────────────────────────────────────────────────────
+let provTemplates = {};
+
+async function loadProviders() {
+  try {
+    const [provR, tmplR] = await Promise.all([
+      fetch('/api/providers', {headers:{'X-Panel-Token':TOKEN}}),
+      fetch('/api/providers/templates', {headers:{'X-Panel-Token':TOKEN}}),
+    ]);
+    const provs = await provR.json();
+    provTemplates = await tmplR.json();
+
+    // Render providers table
+    const tbody = document.getElementById('prov-table-body');
+    if (!provs.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-dim);padding:16px;text-align:center">No providers configured</td></tr>';
+    } else {
+      tbody.innerHTML = provs.map(p => `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 6px;font-weight:600;color:var(--accent)">${p.id}</td>
+          <td style="padding:8px 6px;font-size:11px;color:var(--text-dim);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.baseUrl}</td>
+          <td style="padding:8px 6px">${p.api}</td>
+          <td style="padding:8px 6px;text-align:center">${p.model_count}</td>
+          <td style="padding:8px 6px;text-align:center">${p.apiKey ? '<span style="color:var(--success)">Yes</span>' : '<span style="color:var(--text-dim)">No</span>'}</td>
+          <td style="padding:8px 6px;text-align:center">
+            <button class="btn btn-ghost btn-sm" onclick="viewProvider('${p.id}')">View</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteProvider('${p.id}')" style="color:var(--danger)">Del</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    // Render templates
+    const tmplDiv = document.getElementById('prov-templates');
+    const existingIds = provs.map(p => p.id);
+    tmplDiv.innerHTML = Object.entries(provTemplates).map(([id, tpl]) => {
+      const exists = existingIds.includes(id);
+      return `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;${exists ? 'opacity:.5' : ''}">
+        <div style="font-weight:600;color:var(--accent);font-size:13px">${id}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin:4px 0">${tpl.api} &middot; ${(tpl.models||[]).length} models</div>
+        <button class="btn btn-ghost btn-sm" onclick="addFromTemplate('${id}')" ${exists ? 'disabled' : ''}>
+          ${exists ? 'Added' : 'Add'}
+        </button>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    console.error('loadProviders error:', e);
+  }
+}
+
+async function addFromTemplate(id) {
+  const tpl = provTemplates[id];
+  if (!tpl) return;
+  try {
+    const r = await fetch('/api/providers/add', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Panel-Token':TOKEN},
+      body: JSON.stringify({id, ...tpl})
+    });
+    const d = await r.json();
+    if (d.ok) { showToast(`Provider '${id}' added`, 'ok'); loadProviders(); loadConfig(); }
+    else showToast('Error: '+(d.error||'unknown'), 'err');
+  } catch(e) { showToast('Failed to add provider', 'err'); }
+}
+
+async function addCustomProvider() {
+  const id = document.getElementById('prov-add-id').value.trim().toLowerCase();
+  const baseUrl = document.getElementById('prov-add-url').value.trim();
+  const api = document.getElementById('prov-add-api').value;
+  if (!id || !baseUrl) { showToast('ID and URL required', 'err'); return; }
+  try {
+    const r = await fetch('/api/providers/add', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Panel-Token':TOKEN},
+      body: JSON.stringify({id, baseUrl, api, models: []})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      showToast(`Provider '${id}' added`, 'ok');
+      document.getElementById('prov-add-id').value = '';
+      document.getElementById('prov-add-url').value = '';
+      loadProviders(); loadConfig();
+    } else showToast('Error: '+(d.error||'unknown'), 'err');
+  } catch(e) { showToast('Failed to add provider', 'err'); }
+}
+
+async function deleteProvider(id) {
+  if (!confirm(`Delete provider '${id}'? This cannot be undone.`)) return;
+  try {
+    const r = await fetch('/api/providers/delete', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Panel-Token':TOKEN},
+      body: JSON.stringify({id})
+    });
+    const d = await r.json();
+    if (d.ok) { showToast(`Provider '${id}' deleted`, 'ok'); loadProviders(); loadConfig(); }
+    else showToast('Error: '+(d.error||'unknown'), 'err');
+  } catch(e) { showToast('Failed to delete', 'err'); }
+}
+
+function viewProvider(id) {
+  fetch('/api/providers', {headers:{'X-Panel-Token':TOKEN}})
+    .then(r => r.json())
+    .then(provs => {
+      const p = provs.find(x => x.id === id);
+      if (!p) return;
+      document.getElementById('prov-modal-title').textContent = `Provider: ${id}`;
+      const models = (p.models||[]).map(m =>
+        `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px">${m.id}</td>
+          <td style="padding:6px">${m.name||m.id}</td>
+          <td style="padding:6px;text-align:center">${m.reasoning ? 'Yes' : ''}</td>
+          <td style="padding:6px;text-align:center">${(m.input||[]).join(', ')}</td>
+          <td style="padding:6px;text-align:right;font-family:var(--mono);font-size:11px">${m.contextWindow ? (m.contextWindow/1000)+'K' : ''}</td>
+        </tr>`
+      ).join('');
+      document.getElementById('prov-modal-body').innerHTML = `
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">
+          <strong>URL:</strong> ${p.baseUrl}<br>
+          <strong>API:</strong> ${p.api}<br>
+          <strong>Key set:</strong> ${p.apiKey ? 'Yes' : 'No'}
+        </div>
+        <div class="card-title">Models (${(p.models||[]).length})</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px">
+          <thead><tr style="color:var(--text-dim);border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:6px">ID</th>
+            <th style="text-align:left;padding:6px">Name</th>
+            <th style="text-align:center;padding:6px">Reasoning</th>
+            <th style="text-align:center;padding:6px">Input</th>
+            <th style="text-align:right;padding:6px">Context</th>
+          </tr></thead>
+          <tbody>${models || '<tr><td colspan="5" style="color:var(--text-dim);padding:12px">No models</td></tr>'}</tbody>
+        </table>`;
+      const modal = document.getElementById('prov-detail-modal');
+      modal.style.display = 'flex';
+      modal.onclick = e => { if (e.target === modal) closeProvModal(); };
+    });
+}
+
+function closeProvModal() {
+  document.getElementById('prov-detail-modal').style.display = 'none';
+}
+
+// ── SCRIPTS & DOCS ────────────────────────────────────────────────────
+async function loadScripts() {
+  try {
+    const r = await fetch('/api/scripts', {headers:{'X-Panel-Token':TOKEN}});
+    const scripts = await r.json();
+    const tbody = document.getElementById('scripts-table-body');
+    if (!scripts.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim);padding:16px;text-align:center">No scripts found</td></tr>';
+    } else {
+      tbody.innerHTML = scripts.map(s => {
+        const sz = s.size > 1024 ? (s.size/1024).toFixed(1)+'K' : s.size+'B';
+        const mod = s.modified ? s.modified.slice(0,10) : '';
+        return `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 6px;color:var(--accent)">${s.name}</td>
+          <td style="padding:8px 6px;text-align:right;color:var(--text-dim)">${sz}</td>
+          <td style="padding:8px 6px;text-align:center">${s.executable ? '<span style="color:var(--success)">+x</span>' : ''}</td>
+          <td style="padding:8px 6px;color:var(--text-dim);font-size:11px">${mod}</td>
+          <td style="padding:8px 6px;text-align:center">
+            <button class="btn btn-ghost btn-sm" onclick="runScript('${s.name}')">Run</button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+  } catch(e) { console.error('loadScripts error:', e); }
+}
+
+async function runScript(name) {
+  if (!confirm(`Run script '${name}'?`)) return;
+  document.getElementById('script-output-card').style.display = 'block';
+  document.getElementById('script-output-name').textContent = name;
+  document.getElementById('script-output').textContent = 'Running...';
+  try {
+    const r = await fetch('/api/scripts/run', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Panel-Token':TOKEN},
+      body: JSON.stringify({name})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      const out = (d.stdout || '') + (d.stderr ? '\n--- stderr ---\n'+d.stderr : '');
+      document.getElementById('script-output').textContent = out || '(no output)';
+      document.getElementById('script-output').style.color = d.returncode === 0 ? 'var(--success)' : 'var(--warn)';
+    } else {
+      document.getElementById('script-output').textContent = 'Error: ' + (d.error||'unknown');
+      document.getElementById('script-output').style.color = 'var(--danger)';
+    }
+  } catch(e) {
+    document.getElementById('script-output').textContent = 'Failed: ' + e.message;
+    document.getElementById('script-output').style.color = 'var(--danger)';
+  }
+}
+
+async function loadAgentDocs() {
+  const agent = document.getElementById('doc-agent-select').value;
+  const container = document.getElementById('agent-docs-container');
+  container.innerHTML = '<div style="color:var(--text-dim);font-size:12px">Loading...</div>';
+  try {
+    const r = await fetch(`/api/agent-docs?agent=${agent}`, {headers:{'X-Panel-Token':TOKEN}});
+    const d = await r.json();
+    const docs = d.docs || {};
+    container.innerHTML = Object.entries(docs).map(([fname, content]) => {
+      if (content === null) return '';
+      const lines = (content||'').split('\n').length;
+      const preview = (content||'').slice(0, 300);
+      return `
+      <div style="border:1px solid var(--border);border-radius:8px;margin-top:10px;overflow:hidden">
+        <div style="background:var(--surface2);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer"
+          onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <span style="font-family:var(--mono);font-weight:600;color:var(--accent);font-size:13px">${fname}</span>
+          <span style="font-size:11px;color:var(--text-dim)">${lines} lines</span>
+        </div>
+        <div style="display:none">
+          <textarea id="doc-${agent}-${fname}" style="width:100%;min-height:200px;background:var(--bg);color:var(--text);border:none;padding:12px;font-size:12px;font-family:var(--mono);resize:vertical">${(content||'').replace(/</g,'&lt;')}</textarea>
+          <div style="padding:8px 14px;background:var(--surface2);text-align:right">
+            <button class="btn btn-primary btn-sm" onclick="saveAgentDoc('${agent}','${fname}')">Save ${fname}</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = `<div style="color:var(--danger);font-size:12px">Error: ${e.message}</div>`;
+  }
+}
+
+async function saveAgentDoc(agent, fname) {
+  const textarea = document.getElementById(`doc-${agent}-${fname}`);
+  if (!textarea) return;
+  try {
+    const r = await fetch('/api/agent-docs', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Panel-Token':TOKEN},
+      body: JSON.stringify({agent, docs: {[fname]: textarea.value}})
+    });
+    const d = await r.json();
+    if (d.ok) showToast(`${fname} saved for ${agent}`, 'ok');
+    else showToast('Error: '+(d.error||'unknown'), 'err');
+  } catch(e) { showToast('Failed to save', 'err'); }
+}
+
+// ── SYSTEM ACTIONS ─────────────────────────────────────────────────────
+async function runHealthCheck() {
+  const btn = document.getElementById('btn-health-check');
+  const result = document.getElementById('health-check-result');
+  btn.disabled = true; btn.textContent = 'Running...';
+  result.style.display = 'block';
+  result.innerHTML = '<span style="color:var(--text-dim)">Checking all providers...</span>';
+  try {
+    const r = await fetch('/api/health-check', {
+      method:'POST', headers:{'X-Panel-Token':TOKEN}
+    });
+    const d = await r.json();
+    if (d.ok) {
+      const h = d.health || {};
+      const agents = h.agents || {};
+      let html = '<div style="color:var(--success);margin-bottom:8px">Health check completed</div>';
+      html += Object.entries(agents).map(([id, info]) =>
+        `<div style="padding:4px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--accent);width:60px;display:inline-block">${id}</span>
+          <span style="color:${info.status==='healthy' ? 'var(--success)' : 'var(--danger)'}">${info.status}</span>
+          ${info.fail_count > 0 ? `<span style="color:var(--warn)"> (${info.fail_count} fails)</span>` : ''}
+        </div>`
+      ).join('');
+      result.innerHTML = html;
+      loadStatus();
+    } else {
+      result.innerHTML = `<span style="color:var(--danger)">Error: ${d.error}</span>`;
+    }
+  } catch(e) {
+    result.innerHTML = `<span style="color:var(--danger)">Failed: ${e.message}</span>`;
+  }
+  btn.disabled = false; btn.textContent = 'Run Health Check';
+}
+
+async function reloadConfig() {
+  const btn = document.getElementById('btn-reload');
+  const result = document.getElementById('reload-result');
+  btn.disabled = true; btn.textContent = 'Reloading...';
+  result.style.display = 'block';
+  try {
+    const r = await fetch('/api/reload', {
+      method:'POST', headers:{'X-Panel-Token':TOKEN}
+    });
+    const d = await r.json();
+    if (d.ok) {
+      result.innerHTML = `<span style="color:var(--success)">${d.message}<br>Agents: ${d.agents} | Providers: ${d.providers}</span>`;
+      loadConfig(); loadStatus();
+    } else {
+      result.innerHTML = `<span style="color:var(--danger)">Error: ${d.error}</span>`;
+    }
+  } catch(e) {
+    result.innerHTML = `<span style="color:var(--danger)">Failed: ${e.message}</span>`;
+  }
+  btn.disabled = false; btn.textContent = 'Reload Config';
+}
+
+async function restartGateway() {
+  if (!confirm('Restart openclaw-gateway? This will cause brief downtime.')) return;
+  const btn = document.getElementById('btn-gateway-restart');
+  const result = document.getElementById('gateway-result');
+  btn.disabled = true; btn.textContent = 'Restarting...';
+  result.style.display = 'block';
+  result.innerHTML = '<span style="color:var(--text-dim)">Restarting gateway...</span>';
+  try {
+    const r = await fetch('/api/gateway/restart', {
+      method:'POST', headers:{'X-Panel-Token':TOKEN}
+    });
+    const d = await r.json();
+    if (d.ok) {
+      result.innerHTML = `<span style="color:var(--success)">${d.message}<br>Status: ${d.status}</span>`;
+      loadGatewayStatus();
+    } else {
+      result.innerHTML = `<span style="color:var(--danger)">Error: ${d.error}</span>`;
+    }
+  } catch(e) {
+    result.innerHTML = `<span style="color:var(--danger)">Failed: ${e.message}</span>`;
+  }
+  btn.disabled = false; btn.textContent = 'Restart Gateway';
+}
+
+async function loadGatewayStatus() {
+  try {
+    const r = await fetch('/api/gateway/status', {headers:{'X-Panel-Token':TOKEN}});
+    const d = await r.json();
+    const pre = document.getElementById('gateway-status');
+    const color = d.status === 'active' ? 'var(--success)' : 'var(--danger)';
+    pre.innerHTML = `<span style="color:${color};font-weight:700">${d.status}</span>\n${(d.details||'').replace(/</g,'&lt;')}`;
+  } catch(e) {
+    document.getElementById('gateway-status').textContent = 'Failed to load status';
+  }
+}
+
+// Auto-load tab data saat tab dibuka
 document.querySelectorAll('.nav-item').forEach(el => {
   el.addEventListener('click', () => {
     if (el.dataset.tab === 'usage') loadUsage();
+    if (el.dataset.tab === 'providers') loadProviders();
+    if (el.dataset.tab === 'scripts') { loadScripts(); loadAgentDocs(); }
+    if (el.dataset.tab === 'system') loadGatewayStatus();
   });
 });
 
