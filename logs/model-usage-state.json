@@ -1,9 +1,9 @@
 {
-  "last_check_ts": 1775952257,
-  "last_check_datetime": "2026-04-12 00:04 UTC",
+  "last_check_ts": 1775995464,
+  "last_check_datetime": "2026-04-12 12:04 UTC",
   "providers": {
     "deepseek": {
-      "balance": 1.23,
+      "balance": 1.16,
       "used_since_last": 0,
       "hourly_rate": 0
     },
