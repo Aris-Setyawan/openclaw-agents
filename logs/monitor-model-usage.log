@@ -222,3 +222,19 @@ OpenRouter:
 Time since last check: 5.92h
 
 State saved to: /root/.openclaw/workspace/logs/model-usage-state.json
+━━━ Model Usage Monitor ━━━
+Timestamp: 2026-04-16 00:00 UTC
+
+DeepSeek:
+  Balance: $1.11
+  Used (since last): $0
+  Rate: ~$0/hour
+
+OpenRouter:
+  Total usage: $3.05370097
+  Increase: +$0
+  Rate: ~$0/hour
+
+Time since last check: 5.92h
+
+State saved to: /root/.openclaw/workspace/logs/model-usage-state.json
