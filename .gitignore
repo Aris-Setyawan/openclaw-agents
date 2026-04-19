@@ -1,2 +1,47 @@
+# Credentials & sensitive data
+auth-profiles.json
+models.json
 .env
-*.bak
+.env.*
+*.key
+*.pem
+*.crt
+*.secret
+config.yaml
+secrets/
+credentials/
+
+# Logs & temporary files
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+*.temp
+
+# System files
+*.pid
+.lock
+.DS_Store
+Thumbs.db
+
+# Media files
+media/
+*.jpg
+*.png
+*.mp3
+*.mp4
+*.wav
+
+# OpenClaw specific
+openclaw.json
+panel-token.txt
+health-state.json
+
+# Additional sensitive files
+workspace-state.json
+creative-config.json
+model-fallback-config.json
+failover_config.json
+health-state.json
+.clawhub/
