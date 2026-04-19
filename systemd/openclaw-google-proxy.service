@@ -1,0 +1,13 @@
+[Unit]
+Description=OpenClaw Google Gemini Proxy
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /root/openclaw/google-proxy.py
+Restart=always
+RestartSec=3
+Environment=PROXY_PORT=9998
+
+[Install]
+WantedBy=multi-user.target

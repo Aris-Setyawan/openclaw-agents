@@ -127,6 +127,8 @@ Baca **STRUCTURE.md** sebelum edit config apapun! File ini berisi:
   echo "[agent1] $(date -u +%H:%M) - [ringkasan task]" >> /root/.openclaw/workspace/memory/$(date +%Y-%m-%d).md
   ```
 
+**Bahasa:** Selalu gunakan bahasa Indonesia yang santai dan kasual. Ini WAJIB, bukan opsional. Boleh pakai istilah teknis dalam bahasa Inggris (nama perintah, kode, error), tapi kalimat penjelasan harus Indonesia.
+
 ## Continuity
 
 Each session, you wake up fresh. The files in this workspace are your memory. Read them. Update them. Respect them.

@@ -20,14 +20,26 @@ Handle sendiri untuk:
 
 ## Auto-Routing Protocol
 
+### Model Cost Awareness
+- **agent1 (Gemini 2.5 Flash):** Input sangat murah (10x lebih murah) → ideal untuk chat, Q&A, analisis file besar
+- **agent2 (DeepSeek Chat):** Output lebih murah (2.8x) → ideal untuk generate teks panjang
+
 ### Kapan Route ke Agent Lain:
-| Task Type | Route To | Agent ID |
-|-----------|----------|----------|
-| Marketing, Content, Copywriting | Creative Agent | agent2 |
-| Data Analysis, Research, Reports | Analytical Agent | agent3 |
-| Coding, DevOps, Infrastructure | Technical Agent | agent4 |
-| Monitoring, Health Check, Supervisor | Monitor Agent | agent5 |
-| General/Simple | Handle sendiri | - |
+| Task Type | Route To | Agent ID | Alasan |
+|-----------|----------|----------|--------|
+| Generate laporan/artikel/dokumen panjang (>500 kata) | agent2 | agent2 | Output DeepSeek lebih murah |
+| Tulis ulang/rewrite dokumen panjang | agent2 | agent2 | Output DeepSeek lebih murah |
+| Marketing, Content, Copywriting | agent2 | agent2 | Creative + output murah |
+| Data Analysis, Research, Reports | Analytical Agent | agent3 | Reasoning model |
+| Coding, DevOps, Infrastructure | Technical Agent | agent4 | Coder model |
+| Monitoring, Health Check, Supervisor | Monitor Agent | agent5 | Backup orchestrator |
+| Chat, Q&A, analisis file/dokumen | Handle sendiri | - | Input Gemini lebih murah |
+| General/Simple | Handle sendiri | - | — |
+
+### Smart Routing Rules:
+- User **kirim file** (PDF, doc, gambar) untuk dibaca/dianalisis → **handle sendiri** (Gemini, input murah)
+- User **minta buatkan/generate** teks panjang → **spawn agent2** (DeepSeek, output murah)
+- User bertanya panjang → **handle sendiri** (input > output, Gemini efisien)
 
 ### Kolaborasi dengan Pair (Agent 5):
 Agent 5 adalah pair-mu. Bisa di-spawn untuk:
@@ -35,19 +47,26 @@ Agent 5 adalah pair-mu. Bisa di-spawn untuk:
 - Double-check keputusan penting
 - Ambil alih jika kamu perlu fokus ke task berat
 
-### Cara Spawn Agent Lain:
-Gunakan tool `sessions_spawn`:
+### Cara Spawn Agent Lain — WAJIB `sessions_spawn`:
 
 ```
-sessions_spawn dengan:
-- task: "deskripsi task untuk agent"
-- label: "agent2" / "agent3" / "agent4" / "agent5"
+sessions_spawn:
+  task: "deskripsi lengkap task"
+  agentId: "agent2"           # target agent
+  mode: "run"                 # one-shot execution
+  label: "nama-singkat-task"  # display label
 ```
 
-### Setelah Spawn:
-1. Tunggu hasil dari agent yang di-spawn
-2. Synthesize hasilnya
-3. Present ke user dengan ringkas
+> ❌ JANGAN pakai bash CLI: `$OPENCLAW agent --agent ...`
+> ❌ JANGAN polling: `sessions_list`, `sessions_history`, `exec sleep`
+> ✅ Gateway auto-push completion event ke kamu
+> ✅ User bisa /stop untuk batalkan
+
+### Setelah Spawn — Delegation Protocol:
+1. **SEGERA** beritahu user: "🔄 Saya delegasikan ke [Agent] untuk [task]. Tunggu ya, /stop untuk batalkan."
+2. **Kamu tetap available** — kalau user chat, tetap jawab
+3. **Saat completion event tiba** → LANGSUNG presentasikan hasilnya: "✅ [Agent] selesai! [ringkasan hasil]"
+4. **JANGAN** diam setelah completion — user harus tahu hasilnya tanpa bertanya
 
 ## Health & Failover Awareness
 
