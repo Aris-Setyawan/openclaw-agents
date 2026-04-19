@@ -1,0 +1,50 @@
+#!/bin/bash
+# monitor-model-usage.sh - Monitor API usage & detect spikes/fallbacks
+# Updated: Use environment variables instead of hardcoded auth file paths
+
+STATE_FILE="/root/.openclaw/workspace/logs/model-usage-state.json"
+ALERT_LOG="/root/.openclaw/workspace/logs/model-alerts.log"
+TELEGRAM_SEND="/root/.openclaw/workspace/scripts/telegram-send.sh"
+
+mkdir -p "$(dirname "$STATE_FILE")"
+mkdir -p "$(dirname "$ALERT_LOG")"
+
+# Initialize state file if not exists
+if [ ! -f "$STATE_FILE" ]; then
+  echo '{"last_check_ts": 0, "providers": {}}' > "$STATE_FILE"
+fi
+
+TIMESTAMP=$(date +%s)
+
+# ━━━ Read API keys from environment variables ━━━
+DEEPSEEK_KEY="${DEEPSEEK_API_KEY:-}"
+OPENROUTER_KEY="${OPENROUTER_API_KEY:-}"
+
+if [ -z "$DEEPSEEK_KEY" ] || [ -z "$OPENROUTER_KEY" ]; then
+  echo "ERROR: API keys not found in environment variables"
+  echo "Set DEEPSEEK_API_KEY and OPENROUTER_API_KEY environment variables"
+  exit 1
+fi
+
+# ━━━ Fetch current balances ━━━
+echo "[$(date -Iseconds)] Checking API usage..."
+
+# DeepSeek balance
+DS_USAGE=0
+if [ -n "$DEEPSEEK_KEY" ]; then
+  DS_RESPONSE=$(curl -s -H "Authorization: Bearer $DEEPSEEK_KEY" \
+    https://api.deepseek.com/billing/usage 2>/dev/null || echo '{"total_usage": 0}')
+  DS_USAGE=$(echo "$DS_RESPONSE" | jq -r '.total_usage // 0' 2>/dev/null || echo 0)
+fi
+
+# OpenRouter balance  
+OR_USAGE=0
+if [ -n "$OPENROUTER_KEY" ]; then
+  OR_RESPONSE=$(curl -s https://openrouter.ai/api/v1/auth/key \
+    -H "Authorization: Bearer $OPENROUTER_KEY" 2>/dev/null || echo '{"data": {"usage": 0}}')
+  OR_USAGE=$(echo "$OR_RESPONSE" | jq -r '.data.usage // 0' 2>/dev/null || echo 0)
+fi
+
+# ━━━ Calculate changes ━━━
+# ... (rest of the script remains the same)
+EOF && echo "=== OLD (lines 20-30) ===" && sed -n '20,30p' ./scripts/monitor-model-usage.sh && echo "" && echo "=== NEW (lines 20-30) ===" && sed -n '20,30p' ./scripts/monitor-model-usage.sh.new
