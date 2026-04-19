@@ -45,3 +45,6 @@ model-fallback-config.json
 failover_config.json
 health-state.json
 .clawhub/
+
+# Scripts that read from auth-profiles.json (contain API key access patterns)
+scripts/monitor-model-usage.sh
