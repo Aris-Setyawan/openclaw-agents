@@ -21,7 +21,7 @@ OpenClaw → http://127.0.0.1:9998 (proxy) → https://generativelanguage.google
 
 1. Buka [Google AI Studio](https://aistudio.google.com/apikey)
 2. Klik **Create API Key**
-3. Simpan key-nya (format: `AIzaSy...`)
+3. Simpan key-nya (format: `YOUR_GEMINI_API_KEY_HERE`)
 
 > **Paid Tier 1** sangat direkomendasikan — Free tier punya rate limit ketat yang sering bikin fallback ke model lain.
 
@@ -94,7 +94,7 @@ Edit `~/.openclaw/openclaw.json`, tambahkan provider `gemini` di dalam `models.p
       "gemini": {
         "baseUrl": "http://127.0.0.1:9998",
         "api": "openai-completions",
-        "apiKey": "AIzaSy...",
+        "apiKey": "YOUR_GEMINI_API_KEY_HERE",
         "models": [
           {
             "id": "models/gemini-2.5-flash",
@@ -155,12 +155,12 @@ Format: `gemini/[model-id]` — nama provider diikuti ID model.
 ### Cek proxy jalan:
 ```bash
 curl -s http://127.0.0.1:9998/models \
-  -H "Authorization: Bearer AIzaSy..." | python3 -m json.tool | head -20
+  -H "Authorization: Bearer YOUR_GEMINI_API_KEY_HERE" | python3 -m json.tool | head -20
 ```
 
 ### Cek API key valid:
 ```bash
-curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=AIzaSy..." \
+curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_GEMINI_API_KEY_HERE" \
   | python3 -c "import json,sys; d=json.load(sys.stdin); print('OK -', len(d.get('models',[])), 'models')"
 ```
 

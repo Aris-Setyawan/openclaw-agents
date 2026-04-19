@@ -242,7 +242,7 @@ tail -3 /tmp/panel.log                     # harus ada "Running on"
 Saat user update key di panel (`POST /api/keys`), panel otomatis propagate ke **SEMUA** lokasi:
 
 ```
-Panel /api/keys {"google": "AIzaSy...baru"}
+Panel /api/keys {"google": "YOUR_GEMINI_API_KEY_HEREbaru"}
        │
        ├──▶ openclaw.json:
        │    ├── models.providers.google.apiKey

@@ -93,8 +93,8 @@ Update API key semua provider dari satu tempat — diapply ke **semua agent seka
 
 | Provider | Format Key |
 |----------|-----------|
-| Gemini | `AIzaSy...` |
-| OpenAI | `sk-proj-...` |
+| Gemini | `YOUR_GEMINI_API_KEY_HERE` |
+| OpenAI | `YOUR_OPENAI_API_KEY_HERE` |
 | OpenRouter | `sk-or-v1-...` |
 | DeepSeek | `sk-...` |
 | ModelStudio | `sk-...` |
@@ -105,7 +105,7 @@ Update API key semua provider dari satu tempat — diapply ke **semua agent seka
 2. Klik **Save All Keys**
 3. Key yang kosong tidak akan diubah — aman update satu-satu
 
-> Key lama ditampilkan sebagai `sk-proj-xxx...abc123` (masked). Paste key baru untuk replace.
+> Key lama ditampilkan sebagai `YOUR_OPENAI_API_KEY_HERE` (masked). Paste key baru untuk replace.
 
 ---
 
@@ -185,7 +185,7 @@ curl $BASE/api/config
 curl -X POST $BASE/api/keys \
   -H "X-Panel-Token: $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"gemini": "AIzaSy...", "openai": "sk-proj-..."}'
+  -d '{"gemini": "YOUR_GEMINI_API_KEY_HERE", "openai": "YOUR_OPENAI_API_KEY_HERE"}'
 
 # Update model agent
 curl -X POST $BASE/api/agents \
