@@ -163,3 +163,15 @@ Projected:
 Current balance: $1.38
 
 ⚠️  Check for context bloat or excessive calls!
+[2026-04-20 02:00 UTC] ALERT: DeepSeek USAGE SPIKE!
+
+Used: $.07 in .35h
+Rate: ~$.2000/hour
+
+Projected:
+- Daily: ~$4.8000/day
+- Monthly: ~$144.0000/month
+
+Current balance: $1.33
+
+⚠️  Check for context bloat or excessive calls!
