@@ -18,6 +18,7 @@ tmp/
 temp/
 *.tmp
 *.temp
+*.bak
 
 # System files
 *.pid
@@ -37,6 +38,8 @@ media/
 openclaw.json
 panel-token.txt
 health-state.json
+panel/__pycache__/
+panel_backup/
 
 # Additional sensitive files
 workspace-state.json
@@ -48,3 +51,7 @@ health-state.json
 
 # Scripts that read from auth-profiles.json (contain API key access patterns)
 scripts/monitor-model-usage.sh
+
+# Project lain (bukan bagian openclaw repo)
+hermes/
+pawang/
